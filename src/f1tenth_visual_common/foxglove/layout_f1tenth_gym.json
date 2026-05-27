@@ -1,0 +1,85 @@
+{
+  "configById": {
+    "3D!track_view": {
+      "cameraState": {
+        "distance": 18,
+        "phi": 0.9,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "thetaOffset": 0.3
+      },
+      "followMode": "follow-pose",
+      "followTf": "base_link",
+      "layers": {
+        "grid": {
+          "visible": true
+        }
+      },
+      "scene": {
+        "backgroundColor": "#111827"
+      },
+      "topics": {
+        "/map": {
+          "visible": true
+        },
+        "/visual/racing_line": {
+          "color": "#34d399",
+          "visible": true
+        },
+        "/visual/actual_path": {
+          "color": "#f97316",
+          "visible": true
+        }
+      }
+    },
+    "Table!summary": {
+      "title": "Live KPI",
+      "topicPath": "/hud/kpi.values[:]"
+    },
+    "Gauge!challenge_score": {
+      "colorMap": "turbo",
+      "colorMode": "colormap",
+      "maxValue": 100,
+      "minValue": 0,
+      "path": "/hud/challenge_score.data",
+      "showTicks": true,
+      "style": "dial",
+      "title": "Racer Score (0-100)"
+    },
+    "Gauge!gpu_mem_usage": {
+      "colorMap": "red-yellow-green",
+      "colorMode": "colormap",
+      "maxValue": 100,
+      "minValue": 0,
+      "path": "/hud/gpu_mem_usage_percent.data",
+      "showTicks": true,
+      "style": "bar",
+      "tickInterval": 10,
+      "title": "GPU Memory Usage (%)"
+    }
+  },
+  "globalVariables": {},
+  "layout": {
+    "direction": "row",
+    "first": "3D!track_view",
+    "second": {
+      "direction": "column",
+      "first": "Table!summary",
+      "second": {
+        "direction": "row",
+        "first": "Gauge!challenge_score",
+        "second": "Gauge!gpu_mem_usage",
+        "splitPercentage": 50
+      },
+      "splitPercentage": 74
+    },
+    "splitPercentage": 72
+  },
+  "playbackConfig": {
+    "speed": 1
+  },
+  "userNodes": {}
+}

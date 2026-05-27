@@ -1,0 +1,29 @@
+trajectory_node:
+  ros__parameters:
+    use_odom: true
+    odom_topic: /ego_racecar/odom
+    pose_topic: /pose
+    racing_line_topic: /visual/racing_line
+    use_external_racing_line: false
+    external_racing_line_topic: /planning/racing_line
+    actual_path_topic: /visual/actual_path
+    cross_track_error_topic: /stats/cross_track_error
+    frame_id: map
+
+stats_node:
+  ros__parameters:
+    use_odom: true
+    odom_topic: /ego_racecar/odom
+    pose_topic: /pose
+    drive_topic: /drive
+    cross_track_error_topic: /stats/cross_track_error
+    lap_time_topic: /stats/lap_time
+    compute_ms_topic: /stats/compute_ms
+    challenge_score_topic: /stats/challenge_score
+    hud_kpi_topic: /hud/kpi
+    hud_challenge_score_topic: /hud/challenge_score
+    hud_gpu_mem_usage_topic: /hud/gpu_mem_usage_percent
+    summary_topic: /stats/summary
+    kpi_text_topic: /stats/kpi_text
+    highlights_topic: /stats/highlights
+    frame_id: map

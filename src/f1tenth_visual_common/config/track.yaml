@@ -1,0 +1,30 @@
+trajectory_node:
+  ros__parameters:
+    # Flattened [x1, y1, x2, y2, ...] sequence.
+    racing_line_xy:
+      [
+        9.05, 11.20,
+        9.45, 10.20,
+        10.35, 10.05,
+        10.80, 10.70,
+        10.75, 11.50,
+        10.15, 11.90,
+        9.45, 11.85,
+        9.00, 11.30,
+        9.05, 11.20,
+      ]
+    max_actual_points: 3000
+
+stats_node:
+  ros__parameters:
+    # Start/finish gate line segment A(x, y) -> B(x, y).
+    gate_a_xy: [8.85, 11.10]
+    gate_b_xy: [9.25, 11.35]
+    crossing_positive_direction: true
+    min_lap_time_sec: 5.0
+    crossing_cooldown_sec: 2.0
+    # If true, ignore gate_a/gate_b and use the first observed pose as lap anchor.
+    use_start_point_lap: true
+    start_revisit_radius_m: 0.6
+    start_arm_distance_m: 1.5
+    compute_window_size: 200
