@@ -56,6 +56,23 @@ In Foxglove:
 
 
 
+---
+
+## Controller Debug Dashboard (MPPI)
+
+Import `foxglove/layout_controller_debug.json` in Foxglove for a second debug view (sample trajectories, ESS health gauge, cost plot).
+
+Add 3 lines to your MPPI node (f1tenth_planning based):
+```python
+from f1tenth_visual_common.controller_debug import MppiDebugPublisher, extract_from_f1tenth_planning
+# __init__:  self._debug = MppiDebugPublisher(self, frame_id="map")
+# after plan():  self._debug.publish(**extract_from_f1tenth_planning(self._planner))
+```
+
+For other MPPI implementations pass `sampled_xy`, `rewards`, `chosen_xy` arrays directly — see `controller_debug.py`.
+
+---
+
 Recommended topic setup in Foxglove:
 - 3D panel:
   - `/map`
