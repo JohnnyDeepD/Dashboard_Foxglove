@@ -71,6 +71,9 @@ class MppiDebugPublisher:
         self._steer_sat_pub = node.create_publisher(Float32, f"{topic_prefix}/steer_sat", qos)
         self._accel_sat_pub = node.create_publisher(Float32, f"{topic_prefix}/accel_sat", qos)
         self._advice_pub = node.create_publisher(String, f"{topic_prefix}/advice", qos)
+        self._prev_cost_mean: float = 0.0
+        self._warning_log: list = []
+        self._last_tip_set: set = set()
 
     def publish(
         self,
@@ -148,21 +151,44 @@ class MppiDebugPublisher:
         self._cost_pub.publish(Float32(data=float(cost_mean)))
         self._steer_sat_pub.publish(Float32(data=1.0 if steer_sat else 0.0))
         self._accel_sat_pub.publish(Float32(data=1.0 if accel_sat else 0.0))
-        self._advice_pub.publish(String(data=self._build_advice(ess_ratio, steer_sat, accel_sat, speed_sat)))
+        self._advice_pub.publish(String(data=self._get_advice(
+            ess_ratio, steer_sat, accel_sat, speed_sat, cost_mean
+        )))
 
-    def _build_advice(
-        self, ess_ratio: float, steer_sat: bool, accel_sat: bool, speed_sat: bool
+    def _get_advice(
+        self,
+        ess_ratio: float,
+        steer_sat: bool,
+        accel_sat: bool,
+        speed_sat: bool,
+        cost_mean: float,
     ) -> str:
+        import time as _time
         tips = []
-        if 0.0 <= ess_ratio < 0.1:
-            tips.append("[ESS low] raise temperature or increase n_samples")
-        if steer_sat:
-            tips.append("[Steer saturated] raise max_steer or reduce speed")
-        if accel_sat:
-            tips.append("[Accel saturated] raise max_accel or reduce speed_ref")
-        if speed_sat:
-            tips.append("[Speed saturated] reduce speed_ref")
-        return " | ".join(tips) if tips else "OK"
+        ess_low = 0.0 <= ess_ratio < 0.1
+
+        if ess_low:
+            tips.append("[ESS low] Raise temperature in dynamic_mppi_config()")
+        if steer_sat and ess_low:
+            tips.append("[Steer saturated] Fix ESS first (raise temperature)")
+        if steer_sat and not ess_low:
+            tips.append("[Steer saturated] Check Q[4] yaw cost or corner waypoints; last resort: reduce speed_ref_mps")
+        if accel_sat or speed_sat:
+            tips.append("[Speed saturated] Reduce speed_ref_mps at launch")
+        if cost_mean > 0.0 and self._prev_cost_mean > 0.0:
+            if cost_mean > 5.0 * self._prev_cost_mean:
+                tips.append("[Cost spike] Car off line — check corner waypoints")
+        self._prev_cost_mean = cost_mean if cost_mean > 0.0 else self._prev_cost_mean
+
+        current_tips = set(tips)
+        new_tips = current_tips - self._last_tip_set
+        self._last_tip_set = current_tips
+        for tip in tips:
+            if tip in new_tips:
+                ts = _time.strftime("%H:%M:%S")
+                self._warning_log.append(f"[{ts}] {tip}")
+
+        return "\n".join(self._warning_log) if self._warning_log else "OK"
 
     def _saturated(
         self, value: Optional[float], limit: Optional[float], signed: bool = True

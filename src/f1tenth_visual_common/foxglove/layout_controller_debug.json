@@ -42,16 +42,6 @@
         }
       }
     },
-    "Gauge!ess": {
-      "colorMap": "red-yellow-green",
-      "colorMode": "colormap",
-      "maxValue": 0.2,
-      "minValue": 0,
-      "path": "/debug/mppi/ess_ratio.data",
-      "showTicks": true,
-      "style": "dial",
-      "title": "MPPI ESS ratio (health)"
-    },
     "Table!mppi_health": {
       "title": "MPPI Health",
       "topicPath": "/debug/mppi/health.values[:]"
@@ -96,24 +86,6 @@
       "followingViewWidth": 30,
       "title": "Mean rollout cost over time"
     },
-    "Indicator!steer_sat": {
-      "path": "/debug/mppi/steer_sat.data",
-      "style": "background",
-      "title": "Steer Saturated",
-      "rules": [
-        { "color": "#22c55e", "operator": "=", "rawValue": "0" },
-        { "color": "#ef4444", "operator": "=", "rawValue": "1" }
-      ]
-    },
-    "Indicator!accel_sat": {
-      "path": "/debug/mppi/accel_sat.data",
-      "style": "background",
-      "title": "Accel Saturated",
-      "rules": [
-        { "color": "#22c55e", "operator": "=", "rawValue": "0" },
-        { "color": "#ef4444", "operator": "=", "rawValue": "1" }
-      ]
-    },
     "RawMessages!advice": {
       "topicPath": "/debug/mppi/advice"
     }
@@ -124,34 +96,19 @@
     "first": "3D!mppi_view",
     "second": {
       "direction": "column",
-      "first": {
-        "direction": "row",
-        "first": "Indicator!steer_sat",
-        "second": "Indicator!accel_sat",
-        "splitPercentage": 50
-      },
+      "first": "RawMessages!advice",
       "second": {
         "direction": "column",
-        "first": "RawMessages!advice",
+        "first": "Table!mppi_health",
         "second": {
-          "direction": "column",
-          "first": "Gauge!ess",
-          "second": {
-            "direction": "column",
-            "first": "Table!mppi_health",
-            "second": {
-              "direction": "column",
-              "first": "Plot!ess",
-              "second": "Plot!cost",
-              "splitPercentage": 50
-            },
-            "splitPercentage": 35
-          },
-          "splitPercentage": 20
+          "direction": "row",
+          "first": "Plot!ess",
+          "second": "Plot!cost",
+          "splitPercentage": 50
         },
-        "splitPercentage": 20
+        "splitPercentage": 40
       },
-      "splitPercentage": 15
+      "splitPercentage": 25
     },
     "splitPercentage": 60
   },
