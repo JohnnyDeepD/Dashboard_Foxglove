@@ -95,6 +95,27 @@
       "sidebarDimension": 240,
       "followingViewWidth": 30,
       "title": "Mean rollout cost over time"
+    },
+    "Indicator!steer_sat": {
+      "path": "/debug/mppi/steer_sat.data",
+      "style": "background",
+      "title": "Steer Saturated",
+      "rules": [
+        { "color": "#22c55e", "operator": "=", "rawValue": "0" },
+        { "color": "#ef4444", "operator": "=", "rawValue": "1" }
+      ]
+    },
+    "Indicator!accel_sat": {
+      "path": "/debug/mppi/accel_sat.data",
+      "style": "background",
+      "title": "Accel Saturated",
+      "rules": [
+        { "color": "#22c55e", "operator": "=", "rawValue": "0" },
+        { "color": "#ef4444", "operator": "=", "rawValue": "1" }
+      ]
+    },
+    "RawMessages!advice": {
+      "topicPath": "/debug/mppi/advice"
     }
   },
   "globalVariables": {},
@@ -103,19 +124,34 @@
     "first": "3D!mppi_view",
     "second": {
       "direction": "column",
-      "first": "Gauge!ess",
+      "first": {
+        "direction": "row",
+        "first": "Indicator!steer_sat",
+        "second": "Indicator!accel_sat",
+        "splitPercentage": 50
+      },
       "second": {
         "direction": "column",
-        "first": "Table!mppi_health",
+        "first": "RawMessages!advice",
         "second": {
           "direction": "column",
-          "first": "Plot!ess",
-          "second": "Plot!cost",
-          "splitPercentage": 50
+          "first": "Gauge!ess",
+          "second": {
+            "direction": "column",
+            "first": "Table!mppi_health",
+            "second": {
+              "direction": "column",
+              "first": "Plot!ess",
+              "second": "Plot!cost",
+              "splitPercentage": 50
+            },
+            "splitPercentage": 35
+          },
+          "splitPercentage": 20
         },
-        "splitPercentage": 40
+        "splitPercentage": 20
       },
-      "splitPercentage": 25
+      "splitPercentage": 15
     },
     "splitPercentage": 60
   },

@@ -6,7 +6,7 @@ import numpy as np
 from diagnostic_msgs.msg import DiagnosticStatus, KeyValue
 from geometry_msgs.msg import Point, PoseStamped
 from nav_msgs.msg import Path
-from std_msgs.msg import ColorRGBA, Float32
+from std_msgs.msg import ColorRGBA, Float32, String
 from visualization_msgs.msg import Marker, MarkerArray
 
 
@@ -68,6 +68,9 @@ class MppiDebugPublisher:
         self._health_pub = node.create_publisher(DiagnosticStatus, f"{topic_prefix}/health", qos)
         self._ess_pub = node.create_publisher(Float32, f"{topic_prefix}/ess_ratio", qos)
         self._cost_pub = node.create_publisher(Float32, f"{topic_prefix}/cost_mean", qos)
+        self._steer_sat_pub = node.create_publisher(Float32, f"{topic_prefix}/steer_sat", qos)
+        self._accel_sat_pub = node.create_publisher(Float32, f"{topic_prefix}/accel_sat", qos)
+        self._advice_pub = node.create_publisher(String, f"{topic_prefix}/advice", qos)
 
     def publish(
         self,
@@ -143,6 +146,23 @@ class MppiDebugPublisher:
         self._health_pub.publish(status)
         self._ess_pub.publish(Float32(data=float(ess_ratio)))
         self._cost_pub.publish(Float32(data=float(cost_mean)))
+        self._steer_sat_pub.publish(Float32(data=1.0 if steer_sat else 0.0))
+        self._accel_sat_pub.publish(Float32(data=1.0 if accel_sat else 0.0))
+        self._advice_pub.publish(String(data=self._build_advice(ess_ratio, steer_sat, accel_sat, speed_sat)))
+
+    def _build_advice(
+        self, ess_ratio: float, steer_sat: bool, accel_sat: bool, speed_sat: bool
+    ) -> str:
+        tips = []
+        if 0.0 <= ess_ratio < 0.1:
+            tips.append("[ESS low] raise temperature or increase n_samples")
+        if steer_sat:
+            tips.append("[Steer saturated] raise max_steer or reduce speed")
+        if accel_sat:
+            tips.append("[Accel saturated] raise max_accel or reduce speed_ref")
+        if speed_sat:
+            tips.append("[Speed saturated] reduce speed_ref")
+        return " | ".join(tips) if tips else "OK"
 
     def _saturated(
         self, value: Optional[float], limit: Optional[float], signed: bool = True
