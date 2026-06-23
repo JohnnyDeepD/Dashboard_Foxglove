@@ -58,18 +58,27 @@ In Foxglove:
 
 ---
 
-## Controller Debug Dashboard (MPPI)
+## MPPI Debug Dashboard
 
-Import `foxglove/layout_controller_debug.json` in Foxglove for a second debug view (sample trajectories, ESS health gauge, cost plot).
+Import `foxglove/layout_mppi_debug.json` in Foxglove for an MPPI-specific debug view:
+- **Advice panel**: real-time diagnosis (e.g. ESS low → raise temperature, steer saturated → check waypoints)
+- **Health table**: ESS ratio, cost min/mean/max, saturation flags
+- **3D**: sample rollout trajectories + chosen trajectory
+- **Plots**: ESS ratio and mean cost over time
 
-Add 3 lines to your MPPI node (f1tenth_planning based):
+Add 3 lines to your MPPI node (f1tenth_planning `Dynamic_MPPI_Planner` based):
 ```python
 from f1tenth_visual_common.controller_debug import MppiDebugPublisher, extract_from_f1tenth_planning
-# __init__:  self._debug = MppiDebugPublisher(self, frame_id="map")
+# __init__:      self._debug = MppiDebugPublisher(self, frame_id="map")
 # after plan():  self._debug.publish(**extract_from_f1tenth_planning(self._planner))
 ```
 
-For other MPPI implementations pass `sampled_xy`, `rewards`, `chosen_xy` arrays directly — see `controller_debug.py`.
+For other MPPI implementations, pass arrays directly:
+```python
+self._debug.publish(sampled_xy=..., rewards=..., chosen_xy=..., temperature=...)
+```
+
+See `controller_debug.py` → `MppiDebugPublisher` for full parameter list.
 
 ---
 
