@@ -82,6 +82,31 @@ See `controller_debug.py` → `MppiDebugPublisher` for full parameter list.
 
 ---
 
+## MPC Debug Dashboard (Simple MPC)
+
+Import `foxglove/layout_mpc_debug.json` for an MPC-specific debug view:
+- **Advice panel**: real-time diagnosis (off-track, steer saturated, cost spike)
+- **Health table**: steer_ratio, waypoint_dist, cost, saturation flag
+- **Plots**: steer ratio + waypoint distance over time
+
+`simple_mpc_node` publishes these automatically. For your own MPC node, add 2 lines:
+```python
+from f1tenth_visual_common.controller_debug import MpcDebugPublisher
+# __init__:   self._debug = MpcDebugPublisher(self)
+# each step:  self._debug.publish(steer_ratio=..., waypoint_dist=..., cost=..., reacquire_dist=...)
+```
+
+**Advice guide:**
+
+| Message | Cause | Fix |
+|---|---|---|
+| Off-track | car lost nearest waypoint | add waypoints at corners |
+| Steer saturated | max steer reached every step | reduce `w_cte` or `speed_mps` |
+| Steer near limit | consistently >85% of max | reduce `w_cte` or `speed_mps` |
+| Cost spike | sudden large cost jump | check corner waypoints |
+
+---
+
 Recommended topic setup in Foxglove:
 - 3D panel:
   - `/map`

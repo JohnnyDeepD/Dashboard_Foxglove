@@ -241,6 +241,96 @@ class MppiDebugPublisher:
         return path
 
 
+class MpcDebugPublisher:
+    """Generic debug publisher for any MPC-style controller.
+
+    Publishes standard /debug/mpc/* topics consumed by layout_mpc_debug.json.
+    The student passes steer_ratio, waypoint_dist, cost computed in their node.
+    """
+
+    def __init__(
+        self,
+        node,
+        *,
+        topic_prefix: str = "/debug/mpc",
+        saturation_margin: float = 0.98,
+        qos: int = 5,
+    ) -> None:
+        self._node = node
+        self._saturation_margin = float(saturation_margin)
+        self._health_pub = node.create_publisher(DiagnosticStatus, f"{topic_prefix}/health", qos)
+        self._steer_ratio_pub = node.create_publisher(Float32, f"{topic_prefix}/steer_ratio", qos)
+        self._dist_pub = node.create_publisher(Float32, f"{topic_prefix}/waypoint_dist", qos)
+        self._cost_pub = node.create_publisher(Float32, f"{topic_prefix}/cost", qos)
+        self._advice_pub = node.create_publisher(String, f"{topic_prefix}/advice", qos)
+        self._prev_cost: float = 0.0
+        self._warning_log: list = []
+        self._last_tip_set: set = set()
+
+    def publish(
+        self,
+        *,
+        steer_ratio: float = 0.0,
+        waypoint_dist: float = 0.0,
+        cost: float = 0.0,
+        reacquire_dist: float = 1.0,
+        steer_saturated: bool = False,
+    ) -> None:
+        self._steer_ratio_pub.publish(Float32(data=float(steer_ratio)))
+        self._dist_pub.publish(Float32(data=float(waypoint_dist)))
+        self._cost_pub.publish(Float32(data=float(cost)))
+
+        off_track = waypoint_dist > reacquire_dist
+
+        status = DiagnosticStatus()
+        status.name = "f1tenth_visual_common/mpc_health"
+        status.hardware_id = "simple_mpc"
+        status.level = DiagnosticStatus.WARN if (off_track or steer_saturated) else DiagnosticStatus.OK
+        status.message = "mpc health"
+        status.values = [
+            KeyValue(key="steer_ratio", value=f"{steer_ratio:.3f}"),
+            KeyValue(key="waypoint_dist_m", value=f"{waypoint_dist:.3f}"),
+            KeyValue(key="cost", value=f"{cost:.3f}"),
+            KeyValue(key="steer_saturated", value=str(bool(steer_saturated))),
+            KeyValue(key="off_track", value=str(bool(off_track))),
+        ]
+        self._health_pub.publish(status)
+        self._advice_pub.publish(String(data=self._get_advice(
+            steer_ratio, waypoint_dist, cost, reacquire_dist, steer_saturated
+        )))
+
+    def _get_advice(
+        self,
+        steer_ratio: float,
+        waypoint_dist: float,
+        cost: float,
+        reacquire_dist: float,
+        steer_saturated: bool,
+    ) -> str:
+        import time as _time
+        tips = []
+
+        if waypoint_dist > reacquire_dist:
+            tips.append("[Off-track] Car lost path — check corner waypoints or reduce speed_mps")
+        if steer_saturated:
+            tips.append("[Steer saturated] Reduce w_cte or speed_mps in simple_mpc_node params")
+        if steer_ratio > 0.85 and not steer_saturated:
+            tips.append("[Steer near limit] Consider reducing w_cte or increase max_steer_rad")
+        if cost > 0.0 and self._prev_cost > 0.0 and cost > 5.0 * self._prev_cost:
+            tips.append("[Cost spike] Rollout cost jumped — check waypoints near corners")
+        self._prev_cost = cost if cost > 0.0 else self._prev_cost
+
+        current_tips = set(tips)
+        new_tips = current_tips - self._last_tip_set
+        self._last_tip_set = current_tips
+        for tip in tips:
+            if tip in new_tips:
+                ts = _time.strftime("%H:%M:%S")
+                self._warning_log.append(f"[{ts}] {tip}")
+
+        return "\n".join(self._warning_log) if self._warning_log else "OK"
+
+
 def extract_from_f1tenth_planning(planner) -> dict:
     """Adapter: pull generic debug arrays out of a f1tenth_planning MPPI planner.
 
