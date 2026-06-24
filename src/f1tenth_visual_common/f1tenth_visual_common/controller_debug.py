@@ -314,7 +314,7 @@ class MpcDebugPublisher:
             tips.append("[Off-track] Car lost path — check corner waypoints or reduce speed_mps")
         if steer_saturated and cost > 80.0:
             tips.append("[High cost + steer maxed] Rollout may not see track correctly. "
-                        "Try changing the waypoint_spacing approach in mpc_node.")
+                        "Try changing the waypoint_spacing approach in mpc_node or interpolate the waypoints")
         elif steer_saturated:
             tips.append("[Steer saturated] Reduce w_cte or speed_mps in simple_mpc_node params")
         if steer_ratio > 0.85 and not steer_saturated:
