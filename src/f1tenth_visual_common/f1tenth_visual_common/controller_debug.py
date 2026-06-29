@@ -264,6 +264,7 @@ class MpcDebugPublisher:
         self._cost_pub = node.create_publisher(Float32, f"{topic_prefix}/cost", qos)
         self._advice_pub = node.create_publisher(String, f"{topic_prefix}/advice", qos)
         self._prev_cost: float = 0.0
+        self._prev_waypoint_dist: float = 0.0
         self._warning_log: list = []
         self._last_tip_set: set = set()
 
@@ -312,7 +313,13 @@ class MpcDebugPublisher:
 
         if waypoint_dist > reacquire_dist:
             tips.append("[Off-track] Car lost path — check corner waypoints or reduce speed_mps")
-        if steer_saturated and cost > 80.0:
+        dist_spike = waypoint_dist > 1.5 * max(self._prev_waypoint_dist, 0.1)
+        self._prev_waypoint_dist = waypoint_dist if waypoint_dist > 0 else self._prev_waypoint_dist
+        if steer_saturated and dist_spike:
+            tips.append("[Corner rollout issue] Steer maxed when waypoint_dist jumped — "
+                        "rollout is not anticipating the corner. "
+                        "Pre-compute reference with dind=speed*dt/dlk before the rollout loop.")
+        elif steer_saturated and cost > 80.0:
             tips.append("[High cost + steer maxed] Rollout may not see track correctly. "
                         "Try changing the waypoint_spacing approach in mpc_node or interpolate the waypoints")
         elif steer_saturated:
