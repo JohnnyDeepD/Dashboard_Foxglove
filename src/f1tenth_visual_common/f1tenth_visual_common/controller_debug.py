@@ -315,7 +315,8 @@ class MpcDebugPublisher:
             tips.append("[Off-track] Car lost path — check corner waypoints or reduce speed_mps")
         dist_spike = waypoint_dist > 1.5 * max(self._prev_waypoint_dist, 0.1)
         self._prev_waypoint_dist = waypoint_dist if waypoint_dist > 0 else self._prev_waypoint_dist
-        if steer_saturated and dist_spike:
+        #if steer_saturated and dist_spike:
+        if steer_saturated and waypoint_dist > 0.3:
             tips.append("[Corner rollout issue] Steer maxed when waypoint_dist jumped — "
                         "rollout is not anticipating the corner. "
                         "Pre-compute reference with dind=speed*dt/dlk before the rollout loop.")
