@@ -168,13 +168,13 @@ class MppiDebugPublisher:
         ess_low = 0.0 <= ess_ratio < 0.1
 
         if ess_low:
-            tips.append("[ESS low] Raise temperature in dynamic_mppi_config()")
+            tips.append("[ESS low] Raise the temperature parameter")
         if steer_sat and ess_low:
             tips.append("[Steer saturated] Fix ESS first (raise temperature)")
         if steer_sat and not ess_low:
-            tips.append("[Steer saturated] Check yaw cost or corner waypoints; last resort: reduce speed_ref_mps")
+            tips.append("[Steer saturated] Check yaw cost or corner waypoints; last resort: reduce the target/reference speed")
         if accel_sat or speed_sat:
-            tips.append("[Speed saturated] Reduce speed_ref_mps at launch")
+            tips.append("[Speed saturated] Reduce the target/reference speed")
         if cost_mean > 0.0 and self._prev_cost_mean > 0.0:
             if cost_mean > 5.0 * self._prev_cost_mean:
                 tips.append("[Cost spike] Car off line — check corner waypoints")
@@ -312,21 +312,21 @@ class MpcDebugPublisher:
         tips = []
 
         if waypoint_dist > reacquire_dist:
-            tips.append("[Off-track] Car lost path — check corner waypoints or reduce speed_mps")
+            tips.append("[Off-track] Car lost path — check corner waypoints or reduce target speed")
         dist_spike = waypoint_dist > 1.5 * max(self._prev_waypoint_dist, 0.1)
         self._prev_waypoint_dist = waypoint_dist if waypoint_dist > 0 else self._prev_waypoint_dist
         #if steer_saturated and dist_spike:
         if steer_saturated and waypoint_dist > 0.3:
             tips.append("[Corner rollout issue] Steer maxed when waypoint_dist jumped — "
                         "rollout is not anticipating the corner. "
-                        "Pre-compute reference with dind=speed*dt/dlk before the rollout loop.")
+                        "Pre-compute reference so it advances proportionally to speed each rollout step (no fixed index).")
         elif steer_saturated and cost > 80.0:
             tips.append("[High cost + steer maxed] Rollout may not see track correctly. "
-                        "Try changing the waypoint_spacing approach in mpc_node or interpolate the waypoints")
+                        "Try changing the waypoint spacing or interpolate the waypoints")
         elif steer_saturated:
-            tips.append("[Steer saturated] Reduce w_cte or speed_mps in simple_mpc_node params")
+            tips.append("[Steer saturated] Reduce cross-track-error cost weight or target speed in controller params")
         if steer_ratio > 0.85 and not steer_saturated:
-            tips.append("[Steer near limit] Consider reducing w_cte or increase max_steer_rad")
+            tips.append("[Steer near limit] Consider reducing cross-track-error cost weight or increasing max steering angle limit")
         if cost > 0.0 and self._prev_cost > 0.0 and cost > 5.0 * self._prev_cost:
             tips.append("[Cost spike] Rollout cost jumped — check waypoints near corners")
         self._prev_cost = cost if cost > 0.0 else self._prev_cost
