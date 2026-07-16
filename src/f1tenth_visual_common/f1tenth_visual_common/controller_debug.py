@@ -172,7 +172,7 @@ class MppiDebugPublisher:
         if steer_sat and ess_low:
             tips.append("[Steer saturated] Fix ESS first (raise temperature)")
         if steer_sat and not ess_low:
-            tips.append("[Steer saturated] Check Q[4] yaw cost or corner waypoints; last resort: reduce speed_ref_mps")
+            tips.append("[Steer saturated] Check yaw cost or corner waypoints; last resort: reduce speed_ref_mps")
         if accel_sat or speed_sat:
             tips.append("[Speed saturated] Reduce speed_ref_mps at launch")
         if cost_mean > 0.0 and self._prev_cost_mean > 0.0:
