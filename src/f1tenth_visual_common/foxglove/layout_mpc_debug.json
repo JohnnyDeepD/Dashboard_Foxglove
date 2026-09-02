@@ -1,0 +1,90 @@
+{
+  "configById": {
+    "3D!mpc_view": {
+      "cameraState": {
+        "distance": 18,
+        "phi": 0.9,
+        "target": [0, 0, 0],
+        "thetaOffset": 0.3
+      },
+      "followMode": "follow-pose",
+      "followTf": "base_link",
+      "layers": { "grid": { "visible": true } },
+      "scene": { "backgroundColor": "#111827" },
+      "topics": {
+        "/map": { "visible": true },
+        "/visual/racing_line": { "color": "#34d399", "visible": true },
+        "/visual/actual_path": { "color": "#f97316", "visible": true }
+      }
+    },
+    "RawMessages!advice": {
+      "topicPath": "/debug/mpc/advice"
+    },
+    "Table!mpc_health": {
+      "title": "MPC Health",
+      "topicPath": "/debug/mpc/health.values[:]"
+    },
+    "Plot!steer_ratio": {
+      "paths": [
+        {
+          "value": "/debug/mpc/steer_ratio.data",
+          "enabled": true,
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "minYValue": 0,
+      "maxYValue": 1,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "followingViewWidth": 30,
+      "title": "Steer ratio (0=center, 1=max)"
+    },
+    "Plot!waypoint_dist": {
+      "paths": [
+        {
+          "value": "/debug/mpc/waypoint_dist.data",
+          "enabled": true,
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "followingViewWidth": 30,
+      "title": "Waypoint dist (m) — spike = off-track"
+    }
+  },
+  "globalVariables": {},
+  "layout": {
+    "direction": "row",
+    "first": "3D!mpc_view",
+    "second": {
+      "direction": "column",
+      "first": "RawMessages!advice",
+      "second": {
+        "direction": "column",
+        "first": "Table!mpc_health",
+        "second": {
+          "direction": "row",
+          "first": "Plot!steer_ratio",
+          "second": "Plot!waypoint_dist",
+          "splitPercentage": 50
+        },
+        "splitPercentage": 40
+      },
+      "splitPercentage": 25
+    },
+    "splitPercentage": 60
+  },
+  "playbackConfig": { "speed": 1 },
+  "userNodes": {}
+}

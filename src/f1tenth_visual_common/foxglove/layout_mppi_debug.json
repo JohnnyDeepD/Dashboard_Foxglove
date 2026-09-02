@@ -1,0 +1,119 @@
+{
+  "configById": {
+    "3D!mppi_view": {
+      "cameraState": {
+        "distance": 18,
+        "phi": 0.9,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "thetaOffset": 0.3
+      },
+      "followMode": "follow-pose",
+      "followTf": "base_link",
+      "layers": {
+        "grid": {
+          "visible": true
+        }
+      },
+      "scene": {
+        "backgroundColor": "#111827"
+      },
+      "topics": {
+        "/map": {
+          "visible": true
+        },
+        "/visual/racing_line": {
+          "color": "#34d399",
+          "visible": true
+        },
+        "/visual/actual_path": {
+          "color": "#f97316",
+          "visible": true
+        },
+        "/debug/mppi/samples": {
+          "visible": true
+        },
+        "/debug/mppi/chosen": {
+          "color": "#60a5fa",
+          "visible": true
+        }
+      }
+    },
+    "Table!mppi_health": {
+      "title": "MPPI Health",
+      "topicPath": "/debug/mppi/health.values[:]"
+    },
+    "Plot!ess": {
+      "paths": [
+        {
+          "value": "/debug/mppi/ess_ratio.data",
+          "enabled": true,
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "minYValue": 0,
+      "maxYValue": 0.2,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240,
+      "followingViewWidth": 30,
+      "title": "ESS ratio over time"
+    },
+    "Plot!cost": {
+      "paths": [
+        {
+          "value": "/debug/mppi/cost_mean.data",
+          "enabled": true,
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240,
+      "followingViewWidth": 30,
+      "title": "Mean rollout cost over time"
+    },
+    "RawMessages!advice": {
+      "topicPath": "/debug/mppi/advice"
+    }
+  },
+  "globalVariables": {},
+  "layout": {
+    "direction": "row",
+    "first": "3D!mppi_view",
+    "second": {
+      "direction": "column",
+      "first": "RawMessages!advice",
+      "second": {
+        "direction": "column",
+        "first": "Table!mppi_health",
+        "second": {
+          "direction": "row",
+          "first": "Plot!ess",
+          "second": "Plot!cost",
+          "splitPercentage": 50
+        },
+        "splitPercentage": 40
+      },
+      "splitPercentage": 25
+    },
+    "splitPercentage": 60
+  },
+  "playbackConfig": {
+    "speed": 1
+  },
+  "userNodes": {}
+}

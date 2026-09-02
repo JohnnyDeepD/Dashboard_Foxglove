@@ -1,0 +1,119 @@
+{
+  "configById": {
+    "3D!ftg_view": {
+      "cameraState": {
+        "distance": 14,
+        "phi": 0.9,
+        "target": [0, 0, 0],
+        "thetaOffset": 0.3
+      },
+      "followMode": "follow-pose",
+      "followTf": "base_link",
+      "layers": { "grid": { "visible": true } },
+      "scene": { "backgroundColor": "#111827" },
+      "topics": {
+        "/map": { "visible": true },
+        "/scan": { "colorField": "intensity", "colorMode": "flat", "flatColor": "#38bdf8", "pointSize": 3, "visible": true },
+        "/visual/actual_path": { "color": "#f97316", "visible": true }
+      }
+    },
+    "RawMessages!advice": {
+      "topicPath": "/debug/ftg/advice"
+    },
+    "Table!ftg_health": {
+      "title": "FTG Health",
+      "topicPath": "/debug/ftg/health.values[:]"
+    },
+    "Plot!steer_ratio": {
+      "paths": [
+        {
+          "value": "/debug/ftg/steer_ratio.data",
+          "enabled": true,
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "minYValue": 0,
+      "maxYValue": 1,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "followingViewWidth": 30,
+      "title": "Steer ratio (0=center, 1=max)"
+    },
+    "Plot!gap_width": {
+      "paths": [
+        {
+          "value": "/debug/ftg/gap_width.data",
+          "enabled": true,
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "minYValue": 0,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "followingViewWidth": 30,
+      "title": "Gap width (beams) — 0 = no gap found"
+    },
+    "Plot!nearest_dist": {
+      "paths": [
+        {
+          "value": "/debug/ftg/nearest_dist.data",
+          "enabled": true,
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "value": "/debug/ftg/best_offset.data",
+          "enabled": true,
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "followingViewWidth": 30,
+      "title": "Nearest dist (m) + best_offset (±1 = gap edge)"
+    }
+  },
+  "globalVariables": {},
+  "layout": {
+    "direction": "row",
+    "first": "3D!ftg_view",
+    "second": {
+      "direction": "column",
+      "first": "RawMessages!advice",
+      "second": {
+        "direction": "column",
+        "first": "Table!ftg_health",
+        "second": {
+          "direction": "column",
+          "first": {
+            "direction": "row",
+            "first": "Plot!steer_ratio",
+            "second": "Plot!gap_width",
+            "splitPercentage": 50
+          },
+          "second": "Plot!nearest_dist",
+          "splitPercentage": 55
+        },
+        "splitPercentage": 38
+      },
+      "splitPercentage": 25
+    },
+    "splitPercentage": 55
+  },
+  "playbackConfig": { "speed": 1 },
+  "userNodes": {}
+}
