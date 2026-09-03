@@ -373,15 +373,13 @@ class MpcDebugPublisher:
 
 # ---------------------------------------------------------------------------
 # Follow The Gap — /debug/ftg/*  (Foxglove: layout_ftg_debug.json)
-# Student node: construct once, then publish() after sending /drive.
-# Required args: nearest_dist [m], steer [rad], speed [m/s], gap_width [beams].
+# 3D markers: green gap wedge, yellow AIM ball, red BUBBLE disc.
 # ---------------------------------------------------------------------------
 class FtgDebugPublisher:
-    """Generic debug publisher for any Follow-The-Gap controller.
+    """Debug publisher for Follow-The-Gap.
 
-    Publishes standard /debug/ftg/* topics consumed by layout_ftg_debug.json.
-    Students pass four values from their lidar callback: nearest obstacle
-    distance, steering, speed, and gap width (0 if no gap was found).
+    Foxglove 3D shows the gap (green), the aim point (yellow), and the
+    safety bubble (red). Advice names those colors when something is wrong.
     """
 
     def __init__(
@@ -401,14 +399,17 @@ class FtgDebugPublisher:
         self._persist_frames = max(1, int(persist_frames))
         self._rearm_frames = max(1, int(rearm_frames))
         self._steer_limit = 0.4189
+        self._bubble_small_beams = 16.0
+        self._aim_wall = 0.8
+        self._turning = 0.5
 
-        # Topics the FTG Foxglove layout reads.
-        self._health_pub = node.create_publisher(DiagnosticStatus, f"{topic_prefix}/health", qos)
         self._nearest_pub = node.create_publisher(Float32, f"{topic_prefix}/nearest_dist", qos)
-        self._gap_width_pub = node.create_publisher(Float32, f"{topic_prefix}/gap_width", qos)
+        self._steer_deg_pub = node.create_publisher(Float32, f"{topic_prefix}/steer_deg", qos)
         self._best_offset_pub = node.create_publisher(Float32, f"{topic_prefix}/best_offset", qos)
-        self._steer_ratio_pub = node.create_publisher(Float32, f"{topic_prefix}/steer_ratio", qos)
+        self._bubble_pub = node.create_publisher(Float32, f"{topic_prefix}/bubble_beams", qos)
+        self._markers_pub = node.create_publisher(MarkerArray, f"{topic_prefix}/markers", qos)
         self._advice_pub = node.create_publisher(String, f"{topic_prefix}/advice", qos)
+        self._health_pub = node.create_publisher(DiagnosticStatus, f"{topic_prefix}/health", qos)
 
         self._prev_steer: Optional[float] = None
         self._counters: dict = {}
@@ -423,76 +424,59 @@ class FtgDebugPublisher:
         steer: float = 0.0,
         speed: float = 0.0,
         gap_width: float = 0.0,
-        # Extra fields kept for a richer dashboard later (commented out, not deleted):
-        # gap_start: int = -1,
-        # gap_end: int = -1,
-        # best_point: int = -1,
-        # num_beams: int = 0,
-        # bubble_start: Optional[int] = None,
-        # bubble_end: Optional[int] = None,
-        # steer_limit: float = 0.4189,
-        # angle_increment: Optional[float] = None,
-        # window_start: Optional[int] = None,
-        # scan_size: Optional[int] = None,
+        bubble_beams: float = -1.0,
+        gap_start: int = -1,
+        best_point: int = -1,
+        ranges: Optional[np.ndarray] = None,
+        angle_increment: Optional[float] = None,
+        angle_min: Optional[float] = None,
+        window_start: int = 0,
+        frame_id: str = "laser",
+        nearest_index: int = -1,
+        bubble_start: Optional[int] = None,
+        bubble_end: Optional[int] = None,
     ) -> None:
-        """Publish the standard FTG debug topics.
+        """Publish advice plus the 3D gap / aim / bubble markers.
 
-        Args:
-            nearest_dist: closest obstacle [m].
-            steer: steering sent to /drive [rad].
-            speed: speed sent to /drive [m/s].
-            gap_width: chosen gap size in beams; 0 if none.
+        ``ranges`` + ``angle_increment`` + ``angle_min`` unlock the markers.
+        The other new args are beam indices in that same ``ranges`` slice.
         """
-        # --- derived metrics from the four student values ---
-        # no_gap = gap_start < 0 or gap_end < 0 or best_point < 0
-        # num_beams = max(0, int(num_beams))
-        # if no_gap:
-        #     gap_width = 0.0
-        #     best_offset = 0.0
-        # else:
-        #     gap_width = float(gap_end - gap_start + 1)
-        #     gap_center = 0.5 * (gap_start + gap_end)
-        #     half = max(1e-6, 0.5 * gap_width)
-        #     best_offset = float(np.clip((best_point - gap_center) / half, -1.0, 1.0))
+        if bubble_start is not None and bubble_end is not None and float(bubble_beams) < 0.0:
+            bubble_beams = float(max(0, int(bubble_end) - int(bubble_start)))
+
         no_gap = float(gap_width) <= 0.0
-        # best_offset = 0.0
-
-        # bubble_width = 0.0
-        # if bubble_start is not None and bubble_end is not None:
-        #     bubble_width = float(max(0, int(bubble_end) - int(bubble_start)))
-        # bubble_frac = bubble_width / num_beams if num_beams > 0 else 0.0
-
-        # steer_limit = abs(float(steer_limit)) or 1e-6
+        best_offset = self._aim_in_gap(float(gap_width), int(gap_start), int(best_point))
         steer_ratio = abs(float(steer)) / self._steer_limit
+        steer_deg = math.degrees(float(steer))
         steer_jump = 0.0 if self._prev_steer is None else abs(float(steer) - self._prev_steer)
         self._prev_steer = float(steer)
 
-        # gap_width_deg = (
-        #     math.degrees(gap_width * float(angle_increment)) if angle_increment else -1.0
-        # )
-
-        # Index-to-angle mapping check: the best point sits left of the window
-        # center, so the steering command should point left as well.
-        # Only a clear disagreement counts: both the best point and the steering
-        # command must be well away from center, otherwise smoothing/noise trips it.
-        # sign_mismatch = False
-        # if angle_increment and not no_gap and num_beams > 0:
-        #     beam_offset = best_point - 0.5 * num_beams
-        #     if abs(beam_offset * float(angle_increment)) > 0.15 and abs(steer) > 0.05:
-        #         sign_mismatch = (beam_offset > 0) != (float(steer) > 0)
-
-        # Off-center forward window: the "straight ahead" index of the slice must
-        # be the middle of the slice, otherwise steering has a constant bias.
-        # window_offset = 0.0
-        # if window_start is not None and scan_size is not None and num_beams > 0:
-        #     window_center = float(window_start) + 0.5 * num_beams
-        #     window_offset = window_center - 0.5 * float(scan_size)
-
-        # --- Foxglove plots + health table ---
         self._nearest_pub.publish(Float32(data=float(nearest_dist)))
-        self._gap_width_pub.publish(Float32(data=float(gap_width)))
-        # self._best_offset_pub.publish(Float32(data=best_offset))
-        self._steer_ratio_pub.publish(Float32(data=float(steer_ratio)))
+        self._steer_deg_pub.publish(Float32(data=float(steer_deg)))
+        self._best_offset_pub.publish(Float32(data=float(best_offset)))
+        self._bubble_pub.publish(Float32(data=float(bubble_beams)))
+
+        if (
+            ranges is not None
+            and angle_increment is not None
+            and angle_min is not None
+            and hasattr(self._node, "get_clock")
+        ):
+            self._markers_pub.publish(self._build_markers(
+                ranges=np.asarray(ranges, dtype=float),
+                angle_increment=float(angle_increment),
+                angle_min=float(angle_min),
+                window_start=int(window_start),
+                frame_id=str(frame_id),
+                gap_start=int(gap_start),
+                gap_width=float(gap_width),
+                best_point=int(best_point),
+                nearest_index=int(nearest_index),
+                nearest_dist=float(nearest_dist),
+                bubble_start=bubble_start,
+                bubble_end=bubble_end,
+                bubble_beams=float(bubble_beams),
+            ))
 
         too_close = 0.0 <= nearest_dist < self._collision_dist
         status = DiagnosticStatus()
@@ -501,37 +485,146 @@ class FtgDebugPublisher:
         status.level = DiagnosticStatus.WARN if (no_gap or too_close) else DiagnosticStatus.OK
         status.message = "ftg health"
         status.values = [
-            KeyValue(key="no_gap", value=str(bool(no_gap))),
             KeyValue(key="nearest_dist_m", value=f"{nearest_dist:.3f}"),
-            KeyValue(key="gap_width_beams", value=f"{float(gap_width):.0f}"),
-            # KeyValue(key="gap_width_deg", value=f"{gap_width_deg:.1f}"),
-            # KeyValue(key="best_offset", value=f"{best_offset:+.2f}"),
-            # KeyValue(key="bubble_beams", value=f"{bubble_width:.0f}"),
-            # KeyValue(key="bubble_frac", value=f"{bubble_frac:.2f}"),
-            KeyValue(key="steer_ratio", value=f"{steer_ratio:.3f}"),
-            # KeyValue(key="steer_deg", value=f"{math.degrees(float(steer)):+.1f}"),
-            # KeyValue(key="steer_jump_deg", value=f"{math.degrees(steer_jump):.1f}"),
-            KeyValue(key="speed_mps", value=f"{float(speed):.2f}"),
-            # KeyValue(key="window_offset_beams", value=f"{window_offset:+.0f}"),
+            KeyValue(key="steer_deg", value=f"{steer_deg:+.1f}"),
+            KeyValue(key="best_offset", value=f"{best_offset:+.2f}"),
+            KeyValue(key="bubble_beams", value=f"{float(bubble_beams):.0f}"),
         ]
         self._health_pub.publish(status)
 
-        # --- advice panel ---
         self._advice_pub.publish(String(data=self._get_advice(
             no_gap=no_gap,
             nearest_dist=float(nearest_dist),
-            gap_width=float(gap_width),
-            # num_beams=num_beams,
-            # best_offset=best_offset,
-            # bubble_frac=bubble_frac,
+            bubble_beams=float(bubble_beams),
+            best_offset=best_offset,
             steer_ratio=steer_ratio,
             steer_jump=steer_jump,
             speed=float(speed),
-            # sign_mismatch=sign_mismatch,
-            # window_offset=window_offset,
         )))
 
-    # Ignore one-frame noise: condition must hold persist_frames in a row.
+    @staticmethod
+    def _aim_in_gap(gap_width: float, gap_start: int, best_point: int) -> float:
+        """-1 = left wall of the gap, 0 = midpoint, +1 = right wall."""
+        if gap_width <= 0.0 or gap_start < 0 or best_point < 0:
+            return 0.0
+        gap_center = float(gap_start) + 0.5 * (gap_width - 1.0)
+        half = max(0.5 * gap_width, 1e-6)
+        return float(np.clip((float(best_point) - gap_center) / half, -1.0, 1.0))
+
+    @staticmethod
+    def _beam_xy(index: int, ranges: np.ndarray, angle_min: float, angle_inc: float, window_start: int):
+        if index < 0 or index >= int(ranges.shape[0]):
+            return None
+        r = float(ranges[index])
+        if not math.isfinite(r) or r <= 0.05:
+            return None
+        angle = angle_min + float(window_start + index) * angle_inc
+        return (r * math.cos(angle), r * math.sin(angle))
+
+    def _build_markers(
+        self,
+        *,
+        ranges: np.ndarray,
+        angle_increment: float,
+        angle_min: float,
+        window_start: int,
+        frame_id: str,
+        gap_start: int,
+        gap_width: float,
+        best_point: int,
+        nearest_index: int,
+        nearest_dist: float,
+        bubble_start: Optional[int],
+        bubble_end: Optional[int],
+        bubble_beams: float,
+    ) -> MarkerArray:
+        stamp = self._node.get_clock().now().to_msg()
+        gap_end = int(gap_start + gap_width - 1) if gap_width > 0.0 and gap_start >= 0 else -1
+        gap_ok = gap_end >= gap_start >= 0
+        origin = Point(x=0.0, y=0.0, z=0.04)
+
+        def xy(i: int):
+            return self._beam_xy(i, ranges, angle_min, angle_increment, window_start)
+
+        def base(mid: int, mtype: int) -> Marker:
+            m = Marker()
+            m.header.frame_id = frame_id
+            m.header.stamp = stamp
+            m.ns = "ftg"
+            m.id = mid
+            m.type = mtype
+            m.action = Marker.ADD
+            m.pose.orientation.w = 1.0
+            return m
+
+        # Green pizza slice = the free gap the car chose.
+        fan = base(0, Marker.TRIANGLE_LIST)
+        fan.scale.x = fan.scale.y = fan.scale.z = 1.0
+        fan.color = ColorRGBA(r=0.16, g=0.83, b=0.40, a=0.30)
+        if gap_ok:
+            step = max(1, (gap_end - gap_start) // 20)
+            pts = [xy(i) for i in range(gap_start, gap_end + 1, step)]
+            last = xy(gap_end)
+            if last is not None and (not pts or pts[-1] != last):
+                pts.append(last)
+            pts = [p for p in pts if p is not None]
+            for a, b in zip(pts, pts[1:]):
+                fan.points.extend((
+                    origin,
+                    Point(x=a[0], y=a[1], z=0.04),
+                    Point(x=b[0], y=b[1], z=0.04),
+                ))
+        if not fan.points:
+            fan.action = Marker.DELETE
+
+        # Yellow AIM ball + beam — flickers on wobble, sits on a wall in a bad corner.
+        aim_xy = xy(best_point) if best_point >= 0 else None
+        ball = base(1, Marker.SPHERE)
+        beam = base(2, Marker.LINE_LIST)
+        label = base(3, Marker.TEXT_VIEW_FACING)
+        if aim_xy is not None:
+            ball.pose.position.x, ball.pose.position.y = aim_xy
+            ball.pose.position.z = 0.18
+            ball.scale.x = ball.scale.y = ball.scale.z = 0.28
+            ball.color = ColorRGBA(r=1.0, g=0.84, b=0.15, a=0.95)
+            beam.scale.x = 0.06
+            beam.color = ColorRGBA(r=1.0, g=0.84, b=0.15, a=0.90)
+            beam.points.extend((origin, Point(x=aim_xy[0], y=aim_xy[1], z=0.10)))
+            label.pose.position.x, label.pose.position.y = aim_xy
+            label.pose.position.z = 0.42
+            label.scale.z = 0.22
+            label.color = ColorRGBA(r=1.0, g=0.92, b=0.40, a=1.0)
+            label.text = "AIM"
+        else:
+            ball.action = beam.action = label.action = Marker.DELETE
+
+        # Red disc around the closest obstacle = the safety bubble.
+        near_xy = xy(nearest_index)
+        disc = base(4, Marker.CYLINDER)
+        bubble_label = base(5, Marker.TEXT_VIEW_FACING)
+        if near_xy is not None:
+            half_beams = 0.0
+            if bubble_start is not None and bubble_end is not None:
+                half_beams = 0.5 * max(0, int(bubble_end) - int(bubble_start))
+            elif bubble_beams > 0.0:
+                half_beams = 0.5 * bubble_beams
+            dist = nearest_dist if nearest_dist > 0.05 else math.hypot(*near_xy)
+            radius = max(0.12, dist * math.tan(max(half_beams, 1.0) * angle_increment))
+            disc.pose.position.x, disc.pose.position.y = near_xy
+            disc.pose.position.z = 0.03
+            disc.scale.x = disc.scale.y = 2.0 * radius
+            disc.scale.z = 0.07
+            disc.color = ColorRGBA(r=0.96, g=0.25, b=0.25, a=0.45)
+            bubble_label.pose.position.x, bubble_label.pose.position.y = near_xy
+            bubble_label.pose.position.z = 0.28
+            bubble_label.scale.z = 0.18
+            bubble_label.color = ColorRGBA(r=1.0, g=0.55, b=0.55, a=1.0)
+            bubble_label.text = "BUBBLE"
+        else:
+            disc.action = bubble_label.action = Marker.DELETE
+
+        return MarkerArray(markers=[fan, ball, beam, label, disc, bubble_label])
+
     def _persisted(self, key: str, condition: bool) -> bool:
         """True once ``condition`` held for ``persist_frames`` consecutive calls."""
         count = self._counters.get(key, 0) + 1 if condition else 0
@@ -543,97 +636,62 @@ class FtgDebugPublisher:
         *,
         no_gap: bool,
         nearest_dist: float,
-        gap_width: float,
-        # num_beams: int,
-        # best_offset: float,
-        # bubble_frac: float,
+        bubble_beams: float,
+        best_offset: float,
         steer_ratio: float,
         steer_jump: float,
         speed: float,
-        # sign_mismatch: bool,
-        # window_offset: float,
     ) -> str:
         import time as _time
         tips = []
-        # gap_frac = gap_width / num_beams if num_beams > 0 else 0.0
+        too_close = 0.0 <= nearest_dist < self._collision_dist
+        turning = steer_ratio > self._turning
+        bubble_small = 0.0 <= bubble_beams < self._bubble_small_beams
+        aiming_wall = abs(best_offset) > self._aim_wall
 
-        # --- advice rules (what the student should change) ---
-        # 1. Driving straight into a wall: no gap survives the threshold.
+        # Straight wobble: yellow AIM ball jumps left/right in a corridor.
+        if self._persisted("straight_wobble", steer_jump > self._steer_jump_rad and not turning):
+            tips.append(
+                "[Straight wobble] The yellow AIM ball is jumping left/right. "
+                "find_best_point is chasing the farthest beam. Aim at the "
+                "middle of the green gap, and increase SMOOTH_WINDOW."
+            )
+
+        # Bubble: scraping a wall while not in a hard turn.
+        if self._persisted("bubble_small", too_close and not turning and (bubble_small or bubble_beams < 0.0)):
+            tips.append(
+                "[Bubble too small] You are scraping a wall. The red BUBBLE "
+                "is too small. Increase safety_bubble_radius, and keep the "
+                "disparity extender on."
+            )
+
+        # Corner: turning hard into a wall, or aiming at the gap edge.
+        if self._persisted("corner", turning and (too_close or aiming_wall or speed > 3.0)):
+            if aiming_wall:
+                tips.append(
+                    "[Corner] The yellow AIM ball is on the wall (edge of "
+                    "the green gap). Use the gap midpoint, and slow down "
+                    "when steering is large."
+                )
+            elif too_close:
+                tips.append(
+                    "[Corner] Turning into the wall. Put AIM in the middle "
+                    "of the green gap, and scale speed down when steering "
+                    "is large."
+                )
+            else:
+                tips.append(
+                    "[Corner] Steering is large and speed is still high. "
+                    "Scale speed down when the steering angle is large."
+                )
+
+        # Rare fallback: find_max_gap returned nothing.
         if self._persisted("no_gap", no_gap):
-            # if bubble_frac > 0.5:
-            #     tips.append(
-            #         "[No gap] The safety bubble erased most of the scan "
-            #         f"({bubble_frac:.0%} of the beams). Shrink the bubble radius."
-            #     )
-            # else:
             tips.append(
-                "[No gap] No beam passes the free-space threshold. "
-                "Lower SAFE_THRESHOLD, or raise the range clip (RANGE_LIMIT) "
-                "so distant free space is not clipped away."
+                "[No gap] No beam passed the free-space threshold. "
+                "Lower SAFE_THRESHOLD, or raise RANGE_LIMIT."
             )
 
-        # 2. Driving through obstacles: the bubble is not protecting the car.
-        if self._persisted("too_close", 0.0 <= nearest_dist < self._collision_dist):
-            tips.append(
-                f"[Obstacle too close] nearest_dist {nearest_dist:.2f} m. "
-                #f"[Obstacle too close]. "
-                "Widen the safety bubble around the closest beam, and make sure "
-                "the disparity extender runs so obstacle edges are not seen as free."
-            )
-
-        # 3. Clipping the wall in corners: best point sits at the gap edge.
-        # if self._persisted("best_at_edge", not no_gap and abs(best_offset) > 0.8):
-        #     side = "left" if best_offset > 0 else "right"
-        #     tips.append(
-        #         f"[Best point at gap edge] best_offset {best_offset:+.2f} ({side} edge). "
-        #         "find_best_point is aiming at the gap boundary, i.e. the wall. "
-        #         "Aim at the gap midpoint or at the farthest beam inside the gap."
-        #     )
-        # if self._persisted("narrow_gap", not no_gap and 0.0 < gap_frac < 0.05):
-        #     tips.append(
-        #         f"[Gap very narrow] gap_width {gap_width:.0f} beams ({gap_frac:.0%} of the window). "
-        #         "Lower SAFE_THRESHOLD or shrink the bubble; a gap this thin makes steering twitchy."
-        #     )
-
-        # 4. Steering jitter: index-to-angle mapping is wrong.
-        # if self._persisted("sign_mismatch", sign_mismatch):
-        #     tips.append(
-        #         "[Steering sign flipped] The best point is on one side but the car steers "
-        #         "to the other. Check the index-to-angle mapping: "
-        #         "steer = (best_point - num_beams/2) * angle_increment."
-        #     )
-        if self._persisted("steer_jump", steer_jump > self._steer_jump_rad):
-            tips.append(
-                f"[Steering jitter] Steering jumped {math.degrees(steer_jump):.0f}deg in one scan. "
-                "Check that the best point index is measured on the sliced forward window "
-                "(not the full scan), and increase the smoothing window."
-            )
-        # if self._persisted("window_off_center", abs(window_offset) > 5.0):
-        #     tips.append(
-        #         f"[Forward window off-center] The slice center is {window_offset:+.0f} beams "
-        #         "away from the scan center, so 'straight ahead' is biased. "
-        #         "Slice symmetrically, e.g. ranges[120:960] of 1080 beams."
-        #     )
-
-        # 5. Too fast to make the turn.
-        if self._persisted("fast_in_turn", steer_ratio > 0.6 and speed > 3.0):
-            tips.append(
-                f"[Too fast in the turn] steer_ratio {steer_ratio:.2f} at {speed:.1f} m/s. "
-                "Scale the speed down when the steering angle is large."
-            )
-        if self._persisted("steer_saturated", steer_ratio >= 0.98):
-            tips.append(
-                #"[Steer saturated] Steering is pinned at its limit. Check find_best_point "
-                #"and the bubble width before raising the steering limit."
-                #"[Steer maxed] Full turn — the free gap might not be in front of the car. "
-                #"Check bubble size, then find_best_point. Do not raise max steer first."
-                "[Steer saturated] Steering is at the limit. It is OK in a tight corner. "
-                "If this happens on a straight, check bubble size and find_best_point. "
-                "Do not raise max steer first."
-            )
-
-        # --- history log: same [Tag] does not re-append until it has been
-        # off for rearm_frames (default 10). Different tags still stack. ---
         current_tags = {self._advice_tag(tip) for tip in tips}
         for tag in list(self._latched_tags):
             if tag in current_tags:

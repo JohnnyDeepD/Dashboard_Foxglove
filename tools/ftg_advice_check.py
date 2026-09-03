@@ -1,6 +1,8 @@
 """Throwaway check: does each FTG failure mode produce its advice? (no ROS graph needed)"""
 import sys
 
+import numpy as np
+
 sys.path.insert(0, "src/f1tenth_visual_common")
 from f1tenth_visual_common.controller_debug import FtgDebugPublisher  # noqa: E402
 
@@ -13,12 +15,24 @@ class FakePub:
         self.sink[self.topic] = msg
 
 
+class FakeClock:
+    def now(self):
+        return self
+
+    def to_msg(self):
+        from builtin_interfaces.msg import Time
+        return Time()
+
+
 class FakeNode:
     def __init__(self):
         self.sink = {}
 
     def create_publisher(self, _type, topic, _qos):
         return FakePub(self.sink, topic)
+
+    def get_clock(self):
+        return FakeClock()
 
 
 def run(name, kwargs, frames=4):
@@ -27,48 +41,86 @@ def run(name, kwargs, frames=4):
     for _ in range(frames):
         dbg.publish(**kwargs)
     advice = node.sink["/debug/ftg/advice"].data
-    health = {kv.key: kv.value for kv in node.sink["/debug/ftg/health"].values}
     print(f"--- {name}")
-    print("   health:", health)
     print("   advice:", advice.replace("\n", "\n           "))
-    return advice
+    return node.sink, advice
 
 
-a = run("1. no gap",
-        dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap_width=0))
+sink, a = run("1. no gap",
+              dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap_width=0))
 assert "[No gap]" in a and "SAFE_THRESHOLD" in a
 
-# a = run("1b. no gap (bubble ate the scan)", ...)  # needs bubble_frac
+sink, a = run("2. bubble too small (scraping on a straight)",
+              dict(nearest_dist=0.15, steer=-0.05, speed=2.0, gap_width=200,
+                   bubble_beams=4))
+assert "[Bubble too small]" in a
+assert sink["/debug/ftg/bubble_beams"].data == 4.0
 
-a = run("2. obstacle too close",
-        dict(nearest_dist=0.15, steer=-0.05, speed=2.0, gap_width=200))
-assert "[Obstacle too close]" in a
+# Aim at the right wall of a 100-beam gap starting at 0 → best_offset ≈ +0.91
+sink, a = run("3. corner, aiming at the wall",
+              dict(nearest_dist=1.2, steer=0.30, speed=2.0, gap_width=100,
+                   gap_start=0, best_point=95, bubble_beams=40))
+assert "[Corner]" in a and "yellow AIM" in a
+assert sink["/debug/ftg/best_offset"].data > 0.8
 
-# a = run("3. best point at gap edge", ...)  # needs best_offset
-# a = run("3b. gap very narrow", ...)  # needs num_beams
-# a = run("4. steering sign flipped", ...)  # needs angle_increment / best_point
+sink, a = run("3b. corner, too close while turning",
+              dict(nearest_dist=0.15, steer=0.30, speed=2.0, gap_width=200,
+                   bubble_beams=40))
+assert "[Corner]" in a
+assert "[Bubble too small]" not in a
 
 node = FakeNode()
 dbg = FtgDebugPublisher(node)
 for i in range(6):
-    dbg.publish(nearest_dist=1.2, gap_width=400,
-                steer=0.4 if i % 2 else -0.4, speed=2.0)
+    dbg.publish(nearest_dist=1.8, gap_width=400,
+                steer=0.15 if i % 2 else -0.15, speed=2.0, bubble_beams=20)
 a = node.sink["/debug/ftg/advice"].data
-print("--- 4b. steering jitter\n   advice:", a.replace("\n", "\n           "))
-assert "[Steering jitter]" in a
+print("--- 4. straight wobble\n   advice:", a.replace("\n", "\n           "))
+assert "[Straight wobble]" in a
+assert abs(node.sink["/debug/ftg/steer_deg"].data) > 0.0
 
-# a = run("4c. forward window off-center", ...)  # needs window_start / scan_size
+sink, a = run("5. too fast in the turn (folded into Corner)",
+              dict(nearest_dist=1.2, steer=0.35, speed=5.0, gap_width=400,
+                   bubble_beams=40))
+assert "[Corner]" in a
 
-a = run("5. too fast in the turn",
-        dict(nearest_dist=1.2, steer=0.35, speed=5.0, gap_width=400))
-assert "[Too fast in the turn]" in a
+sink, a = run("6. healthy driving (must stay OK)",
+              dict(nearest_dist=1.8, steer=0.05, speed=3.0, gap_width=400,
+                   bubble_beams=20, gap_start=100, best_point=300))
+assert a == "OK", f"expected OK, got: {a}"
+assert abs(sink["/debug/ftg/best_offset"].data) < 0.1
 
-a = run("6. healthy driving (must stay OK)",
-        dict(nearest_dist=1.8, steer=0.05, speed=3.0, gap_width=400))
+sink, a = run("7. only 2 frames of no_gap (must not fire yet)",
+              dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap_width=0), frames=2)
 assert a == "OK", f"expected OK, got: {a}"
 
-a = run("7. only 2 frames of no_gap (must not fire yet)",
-        dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap_width=0), frames=2)
-assert a == "OK", f"expected OK, got: {a}"
+# Markers: a forward corridor should draw gap + AIM + BUBBLE.
+ranges = np.full(80, 3.0)
+ranges[0] = 0.8
+sink, a = run(
+    "8. 3D markers (gap / AIM / bubble)",
+    dict(
+        nearest_dist=0.8,
+        steer=0.0,
+        speed=1.0,
+        gap_width=40,
+        gap_start=20,
+        best_point=40,
+        ranges=ranges,
+        angle_increment=0.004,
+        angle_min=-2.35,
+        window_start=120,
+        nearest_index=0,
+        bubble_start=0,
+        bubble_end=8,
+    ),
+)
+markers = sink["/debug/ftg/markers"].markers
+kinds = {m.id: (m.action, m.text if m.text else m.type) for m in markers}
+print("   markers:", kinds)
+assert all(m.action == 0 for m in markers), "expected all markers ADD"
+assert any(m.text == "AIM" for m in markers)
+assert any(m.text == "BUBBLE" for m in markers)
+assert any(m.id == 0 and len(m.points) >= 3 for m in markers)
 
 print("\nALL FTG ADVICE CHECKS PASSED")

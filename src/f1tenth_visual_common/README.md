@@ -109,32 +109,43 @@ from f1tenth_visual_common.controller_debug import MpcDebugPublisher
 
 ## Follow The Gap Debug Dashboard
 
-Import `foxglove/layout_ftg_debug.json`. Add this to your Follow The Gap node:
+Import `foxglove/layout_ftg_debug.json`. The 3D view is the lesson:
+
+- **Green wedge** — the free gap you chose
+- **Yellow AIM ball** — the beam you are steering toward
+- **Red BUBBLE** — safety bubble around the closest obstacle
 
 ```python
 # __init__:
 from f1tenth_visual_common.controller_debug import FtgDebugPublisher
 self._debug = FtgDebugPublisher(self)
 
-# after publishing /drive:
-self._debug.publish(
-    nearest_dist=...,  # closest obstacle in meters (not a beam index)
-    steer=...,         # steering you sent to /drive [rad]
-    speed=...,         # speed you sent to /drive [m/s]
-    gap_width=...,     # gap size in beam count; 0 if no gap
-)
-```
-
-Example with the lab node:
-
-```python
+# after publishing /drive (lab node example):
 self._debug.publish(
     nearest_dist=float(np.min(forward_lidar)),
     steer=steering_command,
     speed=velocity_command,
     gap_width=0 if gap[0] is None else gap[1] - gap[0] + 1,
+    gap_start=-1 if gap[0] is None else gap[0],
+    best_point=-1 if gap[0] is None else optimal_trajectory_point,
+    ranges=forward_lidar,
+    angle_increment=data.angle_increment,
+    angle_min=data.angle_min,
+    window_start=120,
+    frame_id=data.header.frame_id,
+    nearest_index=nearest_obstacle_index,
+    bubble_start=bubble_start,
+    bubble_end=bubble_end,
 )
 ```
+
+After `colcon build`, source `install/setup.bash` so the node picks up this publisher.
+
+| What you see in 3D | Advice | What to change |
+|---|---|---|
+| Yellow AIM jumps left/right | `[Straight wobble]` | Aim at the gap midpoint; raise `SMOOTH_WINDOW` |
+| Yellow AIM sits on a wall | `[Corner]` | Use the gap midpoint; slow down in the turn |
+| Red BUBBLE is tiny and you scrape | `[Bubble too small]` | Increase `safety_bubble_radius` |
 
 ---
 
