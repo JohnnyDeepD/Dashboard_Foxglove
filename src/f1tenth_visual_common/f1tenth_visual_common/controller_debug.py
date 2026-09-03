@@ -575,8 +575,8 @@ class FtgDebugPublisher:
         # 2. Driving through obstacles: the bubble is not protecting the car.
         if self._persisted("too_close", 0.0 <= nearest_dist < self._collision_dist):
             tips.append(
-                #f"[Obstacle too close] nearest_dist {nearest_dist:.2f} m. "
-                f"[Obstacle too close]. "
+                f"[Obstacle too close] nearest_dist {nearest_dist:.2f} m. "
+                #f"[Obstacle too close]. "
                 "Widen the safety bubble around the closest beam, and make sure "
                 "the disparity extender runs so obstacle edges are not seen as free."
             )
