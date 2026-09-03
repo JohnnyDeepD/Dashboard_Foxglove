@@ -145,6 +145,8 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 | Red BUBBLE is tiny and you scrape | `[Bubble too small]` | Increase `safety_bubble_radius` |
 | Red BUBBLE ate the gap / AIM on a wall | `[Bubble too large]` | Shrink `safety_bubble_radius` |
 
+`[Bubble too large]` fires when the bubble is ≥ 80 beams and there is no gap, or AIM is on the wall. In that case `[No gap]` is not printed (the bubble ate the space, it is not a threshold bug).
+
 ---
 
 Recommended topic setup in Foxglove:
