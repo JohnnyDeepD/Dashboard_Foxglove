@@ -120,19 +120,16 @@ Import `foxglove/layout_ftg_debug.json`. The 3D view is the lesson:
 from f1tenth_visual_common.controller_debug import FtgDebugPublisher
 self._debug = FtgDebugPublisher(self)
 
-# after publishing /drive (lab node example):
+# after publishing /drive. Rename the algorithm fields to match your code.
+# scan=data is the LaserScan callback argument — leave it as-is.
 self._debug.publish(
-    nearest_dist=float(np.min(forward_lidar)),
+    scan=data,
+    ranges=forward_lidar,
+    window_start=120,          # first index of your lidar slice
     steer=steering_command,
     speed=velocity_command,
-    gap_width=0 if gap[0] is None else gap[1] - gap[0] + 1,
-    gap_start=-1 if gap[0] is None else gap[0],
-    best_point=-1 if gap[0] is None else optimal_trajectory_point,
-    ranges=forward_lidar,
-    angle_increment=data.angle_increment,
-    angle_min=data.angle_min,
-    window_start=120,
-    frame_id=data.header.frame_id,
+    gap=gap,                   # (start, end) or (None, None)
+    best_point=best_point,     # None if no gap
     nearest_index=nearest_obstacle_index,
     bubble_start=bubble_start,
     bubble_end=bubble_end,

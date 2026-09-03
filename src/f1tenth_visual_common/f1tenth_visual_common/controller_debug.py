@@ -420,29 +420,46 @@ class FtgDebugPublisher:
     def publish(
         self,
         *,
-        nearest_dist: float = -1.0,
         steer: float = 0.0,
         speed: float = 0.0,
-        gap_width: float = 0.0,
-        bubble_beams: float = -1.0,
-        gap_start: int = -1,
-        best_point: int = -1,
+        scan=None,
         ranges: Optional[np.ndarray] = None,
-        angle_increment: Optional[float] = None,
-        angle_min: Optional[float] = None,
         window_start: int = 0,
-        frame_id: str = "laser",
+        gap=None,
+        best_point: Optional[int] = None,
         nearest_index: int = -1,
         bubble_start: Optional[int] = None,
         bubble_end: Optional[int] = None,
+        nearest_dist: float = -1.0,
+        gap_width: float = 0.0,
+        gap_start: int = -1,
+        bubble_beams: float = -1.0,
+        angle_increment: Optional[float] = None,
+        angle_min: Optional[float] = None,
+        frame_id: str = "laser",
     ) -> None:
         """Publish advice plus the 3D gap / aim / bubble markers.
 
-        ``ranges`` + ``angle_increment`` + ``angle_min`` unlock the markers.
-        The other new args are beam indices in that same ``ranges`` slice.
+        Students pass ``scan``, ``ranges``, ``gap``, and the indices they
+        already have. Width / scan angles / nearest distance are derived here.
         """
+        if scan is not None:
+            if angle_increment is None:
+                angle_increment = float(scan.angle_increment)
+            if angle_min is None:
+                angle_min = float(scan.angle_min)
+            frame_id = str(getattr(scan.header, "frame_id", None) or frame_id)
+
+        gap_start, gap_width, best_point = self._unpack_gap(
+            gap, gap_width, gap_start, best_point
+        )
         if bubble_start is not None and bubble_end is not None and float(bubble_beams) < 0.0:
             bubble_beams = float(max(0, int(bubble_end) - int(bubble_start)))
+        if ranges is not None and nearest_dist < 0.0:
+            arr = np.asarray(ranges, dtype=float)
+            finite = arr[np.isfinite(arr) & (arr > 0.0)]
+            if finite.size:
+                nearest_dist = float(np.min(finite))
 
         no_gap = float(gap_width) <= 0.0
         best_offset = self._aim_in_gap(float(gap_width), int(gap_start), int(best_point))
@@ -501,6 +518,22 @@ class FtgDebugPublisher:
             steer_jump=steer_jump,
             speed=float(speed),
         )))
+
+    @staticmethod
+    def _unpack_gap(gap, gap_width: float, gap_start: int, best_point: Optional[int]):
+        """Turn ``gap=(start, end)`` or ``(None, None)`` into start / width / aim."""
+        if gap is not None:
+            if gap[0] is None:
+                return -1, 0.0, -1 if best_point is None else int(best_point)
+            start_i, end_i = int(gap[0]), int(gap[1])
+            width = float(end_i - start_i + 1)
+            if best_point is None or int(best_point) < 0:
+                aim = int(round(0.5 * (start_i + end_i)))
+            else:
+                aim = int(best_point)
+            return start_i, width, aim
+        aim = -1 if best_point is None else int(best_point)
+        return int(gap_start), float(gap_width), aim
 
     @staticmethod
     def _aim_in_gap(gap_width: float, gap_start: int, best_point: int) -> float:

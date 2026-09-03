@@ -47,51 +47,52 @@ def run(name, kwargs, frames=4):
 
 
 sink, a = run("1. no gap",
-              dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap_width=0))
+              dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap=(None, None)))
 assert "[No gap]" in a and "SAFE_THRESHOLD" in a
 
 sink, a = run("2. bubble too small (scraping on a straight)",
-              dict(nearest_dist=0.15, steer=-0.05, speed=2.0, gap_width=200,
-                   bubble_beams=4))
+              dict(nearest_dist=0.15, steer=-0.05, speed=2.0, gap=(0, 199),
+                   bubble_start=0, bubble_end=4))
 assert "[Bubble too small]" in a
 assert sink["/debug/ftg/bubble_beams"].data == 4.0
 
 # Aim at the right wall of a 100-beam gap starting at 0 → best_offset ≈ +0.91
 sink, a = run("3. corner, aiming at the wall",
-              dict(nearest_dist=1.2, steer=0.30, speed=2.0, gap_width=100,
-                   gap_start=0, best_point=95, bubble_beams=40))
+              dict(nearest_dist=1.2, steer=0.30, speed=2.0, gap=(0, 99),
+                   best_point=95, bubble_start=0, bubble_end=40))
 assert "[Corner]" in a and "yellow AIM" in a
 assert sink["/debug/ftg/best_offset"].data > 0.8
 
 sink, a = run("3b. corner, too close while turning",
-              dict(nearest_dist=0.15, steer=0.30, speed=2.0, gap_width=200,
-                   bubble_beams=40))
+              dict(nearest_dist=0.15, steer=0.30, speed=2.0, gap=(0, 199),
+                   bubble_start=0, bubble_end=40))
 assert "[Corner]" in a
 assert "[Bubble too small]" not in a
 
 node = FakeNode()
 dbg = FtgDebugPublisher(node)
 for i in range(6):
-    dbg.publish(nearest_dist=1.8, gap_width=400,
-                steer=0.15 if i % 2 else -0.15, speed=2.0, bubble_beams=20)
+    dbg.publish(nearest_dist=1.8, gap=(0, 399),
+                steer=0.15 if i % 2 else -0.15, speed=2.0,
+                bubble_start=0, bubble_end=20)
 a = node.sink["/debug/ftg/advice"].data
 print("--- 4. straight wobble\n   advice:", a.replace("\n", "\n           "))
 assert "[Straight wobble]" in a
 assert abs(node.sink["/debug/ftg/steer_deg"].data) > 0.0
 
 sink, a = run("5. too fast in the turn (folded into Corner)",
-              dict(nearest_dist=1.2, steer=0.35, speed=5.0, gap_width=400,
-                   bubble_beams=40))
+              dict(nearest_dist=1.2, steer=0.35, speed=5.0, gap=(0, 399),
+                   bubble_start=0, bubble_end=40))
 assert "[Corner]" in a
 
 sink, a = run("6. healthy driving (must stay OK)",
-              dict(nearest_dist=1.8, steer=0.05, speed=3.0, gap_width=400,
-                   bubble_beams=20, gap_start=100, best_point=300))
+              dict(nearest_dist=1.8, steer=0.05, speed=3.0, gap=(100, 499),
+                   best_point=300, bubble_start=0, bubble_end=20))
 assert a == "OK", f"expected OK, got: {a}"
 assert abs(sink["/debug/ftg/best_offset"].data) < 0.1
 
 sink, a = run("7. only 2 frames of no_gap (must not fire yet)",
-              dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap_width=0), frames=2)
+              dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap=(None, None)), frames=2)
 assert a == "OK", f"expected OK, got: {a}"
 
 # Markers: a forward corridor should draw gap + AIM + BUBBLE.
@@ -100,11 +101,9 @@ ranges[0] = 0.8
 sink, a = run(
     "8. 3D markers (gap / AIM / bubble)",
     dict(
-        nearest_dist=0.8,
         steer=0.0,
         speed=1.0,
-        gap_width=40,
-        gap_start=20,
+        gap=(20, 59),
         best_point=40,
         ranges=ranges,
         angle_increment=0.004,
