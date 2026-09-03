@@ -388,7 +388,7 @@ class FtgDebugPublisher:
         *,
         topic_prefix: str = "/debug/ftg",
         collision_dist: float = 0.35,
-        steer_jump_rad: float = 0.25,
+        steer_jump_rad: float = 0.25, 
         persist_frames: int = 3,
         rearm_frames: int = 10,
         qos: int = 5,
@@ -685,11 +685,14 @@ class FtgDebugPublisher:
         aiming_wall = abs(best_offset) > self._aim_wall
 
         # Straight wobble: yellow AIM ball jumps left/right in a corridor.
-        if self._persisted("straight_wobble", steer_jump > self._steer_jump_rad and not turning):
+        #if self._persisted("straight_wobble", steer_jump > self._steer_jump_rad and not turning):
+        if self._persisted("straight_wobble", not turning and abs(best_offset) > 0.4):
             tips.append(
                 "[Straight wobble] The yellow AIM ball is jumping left/right. "
-                "find_best_point is chasing the farthest beam. Aim at the "
-                "middle of the green gap, and increase SMOOTH_WINDOW."
+                #"find_best_point is chasing the farthest beam. 
+                "Aim at the "
+                "middle of the green gap"
+                #, and increase SMOOTH_WINDOW."
             )
 
         # Bubble ate the scan: leftover gap is gone or AIM sits on a wall.
