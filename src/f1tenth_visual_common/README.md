@@ -143,6 +143,7 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 | Yellow AIM jumps left/right | `[Straight wobble]` | Aim at the gap midpoint; raise `SMOOTH_WINDOW` |
 | Yellow AIM sits on a wall | `[Corner]` | Use the gap midpoint; slow down in the turn |
 | Red BUBBLE is tiny and you scrape | `[Bubble too small]` | Increase `safety_bubble_radius` |
+| Red BUBBLE ate the gap / AIM on a wall | `[Bubble too large]` | Shrink `safety_bubble_radius` |
 
 ---
 

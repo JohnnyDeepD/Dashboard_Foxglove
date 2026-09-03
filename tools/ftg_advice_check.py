@@ -50,6 +50,12 @@ sink, a = run("1. no gap",
               dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap=(None, None)))
 assert "[No gap]" in a and "SAFE_THRESHOLD" in a
 
+sink, a = run("1b. no gap because bubble ate the scan",
+              dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap=(None, None),
+                   bubble_start=0, bubble_end=160))
+assert "[Bubble too large]" in a
+assert "[No gap]" not in a
+
 sink, a = run("2. bubble too small (scraping on a straight)",
               dict(nearest_dist=0.15, steer=-0.05, speed=2.0, gap=(0, 199),
                    bubble_start=0, bubble_end=4))
@@ -62,6 +68,11 @@ sink, a = run("3. corner, aiming at the wall",
                    best_point=95, bubble_start=0, bubble_end=40))
 assert "[Corner]" in a and "yellow AIM" in a
 assert sink["/debug/ftg/best_offset"].data > 0.8
+
+sink, a = run("3c. huge bubble pins AIM on the wall",
+              dict(nearest_dist=1.2, steer=0.30, speed=1.0, gap=(0, 99),
+                   best_point=95, bubble_start=0, bubble_end=160))
+assert "[Bubble too large]" in a
 
 sink, a = run("3b. corner, too close while turning",
               dict(nearest_dist=0.15, steer=0.30, speed=2.0, gap=(0, 199),

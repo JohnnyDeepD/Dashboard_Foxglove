@@ -400,6 +400,7 @@ class FtgDebugPublisher:
         self._rearm_frames = max(1, int(rearm_frames))
         self._steer_limit = 0.4189
         self._bubble_small_beams = 16.0
+        self._bubble_large_beams = 80.0
         self._aim_wall = 0.8
         self._turning = 0.5
 
@@ -680,6 +681,7 @@ class FtgDebugPublisher:
         too_close = 0.0 <= nearest_dist < self._collision_dist
         turning = steer_ratio > self._turning
         bubble_small = 0.0 <= bubble_beams < self._bubble_small_beams
+        bubble_large = bubble_beams >= self._bubble_large_beams
         aiming_wall = abs(best_offset) > self._aim_wall
 
         # Straight wobble: yellow AIM ball jumps left/right in a corridor.
@@ -688,6 +690,13 @@ class FtgDebugPublisher:
                 "[Straight wobble] The yellow AIM ball is jumping left/right. "
                 "find_best_point is chasing the farthest beam. Aim at the "
                 "middle of the green gap, and increase SMOOTH_WINDOW."
+            )
+
+        # Bubble ate the scan: leftover gap is gone or AIM sits on a wall.
+        if self._persisted("bubble_large", bubble_large and (no_gap or aiming_wall)):
+            tips.append(
+                "[Bubble too large] The red BUBBLE ate the gap. "
+                "Shrink safety_bubble_radius."
             )
 
         # Bubble: scraping a wall while not in a hard turn.
@@ -718,8 +727,8 @@ class FtgDebugPublisher:
                     "Scale speed down when the steering angle is large."
                 )
 
-        # Rare fallback: find_max_gap returned nothing.
-        if self._persisted("no_gap", no_gap):
+        # Rare fallback: find_max_gap returned nothing (not a huge bubble).
+        if self._persisted("no_gap", no_gap and not bubble_large):
             tips.append(
                 "[No gap] No beam passed the free-space threshold. "
                 "Lower SAFE_THRESHOLD, or raise RANGE_LIMIT."
