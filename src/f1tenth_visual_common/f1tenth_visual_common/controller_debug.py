@@ -413,6 +413,7 @@ class FtgDebugPublisher:
         self._health_pub = node.create_publisher(DiagnosticStatus, f"{topic_prefix}/health", qos)
 
         self._prev_steer: Optional[float] = None
+        self._close_from_turn = False
         self._counters: dict = {}
         self._warning_log: list = []
         self._latched_tags: set = set()
@@ -683,6 +684,11 @@ class FtgDebugPublisher:
         bubble_small = 0.0 <= bubble_beams < self._bubble_small_beams
         bubble_large = bubble_beams >= self._bubble_large_beams
         aiming_wall = abs(best_offset) > self._aim_wall
+        if turning:
+            if too_close:
+                self._close_from_turn = True
+        elif not too_close:
+            self._close_from_turn = False
 
         # Straight wobble: yellow AIM ball jumps left/right in a corridor.
         #if self._persisted("straight_wobble", steer_jump > self._steer_jump_rad and not turning):
@@ -702,33 +708,23 @@ class FtgDebugPublisher:
                 "Shrink safety_bubble_radius."
             )
 
-        # # Bubble: scraping a wall while not in a hard turn.
-        if self._persisted("bubble_small", too_close and not turning and (bubble_small or bubble_beams < 0.0)):
+        # Bubble too small: new scrape on a straight, not leftover from a corner.
+        if self._persisted(
+            "bubble_small",
+            too_close and not turning and bubble_small and not self._close_from_turn,
+        ):
             tips.append(
-                "[Bubble too small] You are scraping a wall. The red BUBBLE "
-                "is too small. Increase safety_bubble_radius, and keep the "
-                "disparity extender on."
+                "[Bubble too small] The red BUBBLE is tiny. "
+                "Increase safety_bubble_radius."
             )
-        
-        # if self._persisted("bubble_small", too_close and bubble_small):
-        #     tips.append(
-        #         "[Bubble too small] The red BUBBLE is tiny. "
-        #         "Increase safety_bubble_radius."
-        #     )
 
-        # Corner: turning hard into a wall, or aiming at the gap edge.
-        if self._persisted("corner", turning and (too_close or aiming_wall or speed > 3.0)):
+        # Corner: AIM on the gap edge, or still fast while steering hard.
+        if self._persisted("corner", turning and (aiming_wall or speed > 3.0)):
             if aiming_wall:
                 tips.append(
                     "[Corner] The yellow AIM ball is on the wall (edge of "
                     "the green gap). Use the gap midpoint, and slow down "
                     "when steering is large."
-                )
-            elif too_close:
-                tips.append(
-                    "[Corner] Turning into the wall. Put AIM in the middle "
-                    "of the green gap, and scale speed down when steering "
-                    "is large."
                 )
             else:
                 tips.append(

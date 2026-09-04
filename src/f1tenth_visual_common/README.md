@@ -141,11 +141,15 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 | What you see in 3D | Advice | What to change |
 |---|---|---|
 | Yellow AIM is not in the middle of the green gap (while going straight) | `[Straight wobble]` | Aim at the gap midpoint |
-| Yellow AIM sits on a wall | `[Corner]` | Use the gap midpoint; slow down in the turn |
-| Red BUBBLE is tiny and you scrape | `[Bubble too small]` | Increase `safety_bubble_radius` |
+| Yellow AIM sits on the edge of the green gap | `[Corner]` | Use the gap midpoint; slow down when steering is large |
+| Steering is large and speed is still high | `[Corner]` | Scale speed down when steering is large |
+| Red BUBBLE is tiny and you get close to a wall on a straight | `[Bubble too small]` | Increase `safety_bubble_radius` |
 | Red BUBBLE ate the gap / AIM on a wall | `[Bubble too large]` | Shrink `safety_bubble_radius` |
 
 `[Bubble too large]` fires when the bubble is ≥ 80 beams and there is no gap, or AIM is on the wall. In that case `[No gap]` is not printed (the bubble ate the space, it is not a threshold bug).
+
+`[Bubble too small]` does not fire on leftover closeness after a turn (only a new scrape on a straight).
+We do not warn for “cutting the inside” or “not turning enough” — those are too vague to tell the student what to change.
 
 ---
 

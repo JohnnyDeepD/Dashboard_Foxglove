@@ -74,10 +74,23 @@ sink, a = run("3c. huge bubble pins AIM on the wall",
                    best_point=95, bubble_start=0, bubble_end=160))
 assert "[Bubble too large]" in a
 
-sink, a = run("3b. corner, too close while turning",
+sink, a = run("3b. too close while turning, AIM centered (must stay OK)",
               dict(nearest_dist=0.15, steer=0.30, speed=2.0, gap=(0, 199),
                    bubble_start=0, bubble_end=40))
-assert "[Corner]" in a
+assert a == "OK", f"expected OK, got: {a}"
+assert "[Bubble too small]" not in a
+
+node = FakeNode()
+dbg = FtgDebugPublisher(node)
+for _ in range(4):
+    dbg.publish(nearest_dist=0.15, steer=0.30, speed=2.0, gap=(0, 199),
+                bubble_start=0, bubble_end=4)
+for _ in range(20):
+    dbg.publish(nearest_dist=0.15, steer=-0.05, speed=2.0, gap=(0, 199),
+                bubble_start=0, bubble_end=4)
+a = node.sink["/debug/ftg/advice"].data
+print("--- 3d. still close after a turn (must not be bubble_small)")
+print("   advice:", a.replace("\n", "\n           "))
 assert "[Bubble too small]" not in a
 
 sink, a = run("4. straight wobble (AIM off-center)",
