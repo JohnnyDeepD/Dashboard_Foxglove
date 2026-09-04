@@ -66,7 +66,8 @@ assert sink["/debug/ftg/bubble_beams"].data == 4.0
 sink, a = run("3. corner, aiming at the wall",
               dict(nearest_dist=1.2, steer=0.30, speed=2.0, gap=(0, 99),
                    best_point=95, bubble_start=0, bubble_end=40))
-assert "[Corner]" in a and "yellow AIM" in a
+assert "[Corner AIM]" in a and "yellow AIM" in a
+assert "[Corner speed]" not in a
 assert sink["/debug/ftg/best_offset"].data > 0.8
 
 sink, a = run("3c. huge bubble pins AIM on the wall",
@@ -99,10 +100,22 @@ sink, a = run("4. straight wobble (AIM off-center)",
 assert "[Straight wobble]" in a
 assert abs(sink["/debug/ftg/best_offset"].data) > 0.4
 
-sink, a = run("5. too fast in the turn (folded into Corner)",
+sink, a = run("5. too fast in the turn and too close",
+              dict(nearest_dist=0.15, steer=0.35, speed=5.0, gap=(0, 399),
+                   bubble_start=0, bubble_end=40))
+assert "[Corner speed]" in a
+assert "[Corner AIM]" not in a
+
+sink, a = run("5b. corner AIM and speed together",
+              dict(nearest_dist=0.15, steer=0.30, speed=5.0, gap=(0, 99),
+                   best_point=95, bubble_start=0, bubble_end=40))
+assert "[Corner AIM]" in a
+assert "[Corner speed]" in a
+
+sink, a = run("5c. fast clean exit (must not be corner_speed)",
               dict(nearest_dist=1.2, steer=0.35, speed=5.0, gap=(0, 399),
                    bubble_start=0, bubble_end=40))
-assert "[Corner]" in a
+assert "[Corner speed]" not in a
 
 sink, a = run("6. healthy driving (must stay OK)",
               dict(nearest_dist=1.8, steer=0.05, speed=3.0, gap=(100, 499),

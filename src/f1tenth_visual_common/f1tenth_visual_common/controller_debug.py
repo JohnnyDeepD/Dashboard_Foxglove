@@ -737,19 +737,17 @@ class FtgDebugPublisher:
                 "Increase safety_bubble_radius."
             )
 
-        # Corner: AIM on the gap edge, or still fast while steering hard.
-        if self._persisted("corner", turning and (aiming_wall or speed > 3.0)):
-            if aiming_wall:
-                tips.append(
-                    "[Corner] The yellow AIM ball is on the wall (edge of "
-                    "the green gap). Use the gap midpoint, and slow down "
-                    "when steering is large."
-                )
-            else:
-                tips.append(
-                    "[Corner] Steering is large and speed is still high. "
-                    "Scale speed down when the steering angle is large."
-                )
+        # Corner: AIM on the gap edge, and/or still fast while steering hard.
+        if self._persisted("corner_aim", turning and aiming_wall):
+            tips.append(
+                "[Corner AIM] The yellow AIM ball is on the wall (edge of "
+                "the green gap). Use the gap midpoint."
+            )
+        if self._persisted("corner_speed", turning and speed > 3.0 and too_close):
+            tips.append(
+                "[Corner speed] Steering is large and speed is still high. "
+                "Scale speed down when the steering angle is large."
+            )
 
         # Rare fallback: find_max_gap returned nothing (not a huge bubble).
         if self._persisted("no_gap", no_gap and not bubble_large):
