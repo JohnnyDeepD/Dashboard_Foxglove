@@ -399,7 +399,7 @@ class FtgDebugPublisher:
         self._persist_frames = max(1, int(persist_frames))
         self._rearm_frames = max(1, int(rearm_frames))
         self._steer_limit = 0.4189
-        self._bubble_small_beams = 16.0
+        self._bubble_small_beams = 16.0  # Heuristic since radius=10 (20 beams) is good.
         self._bubble_large_beams = 80.0
         self._aim_wall = 0.8
         self._turning = 0.5
@@ -702,13 +702,19 @@ class FtgDebugPublisher:
                 "Shrink safety_bubble_radius."
             )
 
-        # Bubble: scraping a wall while not in a hard turn.
+        # # Bubble: scraping a wall while not in a hard turn.
         if self._persisted("bubble_small", too_close and not turning and (bubble_small or bubble_beams < 0.0)):
             tips.append(
                 "[Bubble too small] You are scraping a wall. The red BUBBLE "
                 "is too small. Increase safety_bubble_radius, and keep the "
                 "disparity extender on."
             )
+        
+        # if self._persisted("bubble_small", too_close and bubble_small):
+        #     tips.append(
+        #         "[Bubble too small] The red BUBBLE is tiny. "
+        #         "Increase safety_bubble_radius."
+        #     )
 
         # Corner: turning hard into a wall, or aiming at the gap edge.
         if self._persisted("corner", turning and (too_close or aiming_wall or speed > 3.0)):

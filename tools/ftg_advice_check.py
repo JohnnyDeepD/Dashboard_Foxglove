@@ -80,16 +80,11 @@ sink, a = run("3b. corner, too close while turning",
 assert "[Corner]" in a
 assert "[Bubble too small]" not in a
 
-node = FakeNode()
-dbg = FtgDebugPublisher(node)
-for i in range(6):
-    dbg.publish(nearest_dist=1.8, gap=(0, 399),
-                steer=0.15 if i % 2 else -0.15, speed=2.0,
-                bubble_start=0, bubble_end=20)
-a = node.sink["/debug/ftg/advice"].data
-print("--- 4. straight wobble\n   advice:", a.replace("\n", "\n           "))
+sink, a = run("4. straight wobble (AIM off-center)",
+              dict(nearest_dist=1.8, steer=0.05, speed=2.0, gap=(0, 399),
+                   best_point=20, bubble_start=0, bubble_end=20))
 assert "[Straight wobble]" in a
-assert abs(node.sink["/debug/ftg/steer_deg"].data) > 0.0
+assert abs(sink["/debug/ftg/best_offset"].data) > 0.4
 
 sink, a = run("5. too fast in the turn (folded into Corner)",
               dict(nearest_dist=1.2, steer=0.35, speed=5.0, gap=(0, 399),
