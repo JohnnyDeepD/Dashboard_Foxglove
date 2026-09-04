@@ -469,6 +469,11 @@ class FtgDebugPublisher:
         steer_deg = math.degrees(float(steer))
         steer_jump = 0.0 if self._prev_steer is None else abs(float(steer) - self._prev_steer)
         self._prev_steer = float(steer)
+        expected_steer = 0.0
+        if ranges is not None and angle_increment is not None and int(best_point) >= 0:
+            n = int(np.asarray(ranges).shape[0])
+            if n > 0:
+                expected_steer = (int(best_point) - n // 2) * float(angle_increment)
 
         self._nearest_pub.publish(Float32(data=float(nearest_dist)))
         self._steer_deg_pub.publish(Float32(data=float(steer_deg)))
@@ -519,6 +524,8 @@ class FtgDebugPublisher:
             steer_ratio=steer_ratio,
             steer_jump=steer_jump,
             speed=float(speed),
+            steer=float(steer),
+            expected_steer=expected_steer,
         )))
 
     @staticmethod
@@ -676,6 +683,8 @@ class FtgDebugPublisher:
         steer_ratio: float,
         steer_jump: float,
         speed: float,
+        steer: float = 0.0,
+        expected_steer: float = 0.0,
     ) -> str:
         import time as _time
         tips = []
@@ -689,6 +698,16 @@ class FtgDebugPublisher:
                 self._close_from_turn = True
         elif not too_close:
             self._close_from_turn = False
+
+        # Sign flipped: AIM left (+) but steer is right, or the reverse.
+        if self._persisted(
+            "steer_sign",
+            abs(expected_steer) > 0.15 and steer * expected_steer < 0,
+        ):
+            tips.append(
+                "[Steer sign] Steering is the opposite of the yellow AIM. "
+                "Left is positive."
+            )
 
         # Straight wobble: yellow AIM ball jumps left/right in a corridor.
         #if self._persisted("straight_wobble", steer_jump > self._steer_jump_rad and not turning):

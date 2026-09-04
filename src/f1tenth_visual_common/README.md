@@ -143,6 +143,7 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 | Yellow AIM is not in the middle of the green gap (while going straight) | `[Straight wobble]` | Aim at the gap midpoint |
 | Yellow AIM sits on the edge of the green gap | `[Corner]` | Use the gap midpoint; slow down when steering is large |
 | Steering is large and speed is still high | `[Corner]` | Scale speed down when steering is large |
+| Yellow AIM goes one way, the car steers the other | `[Steer sign]` | Left is positive. Flip the sign of the steering angle |
 | Red BUBBLE is tiny and you get close to a wall on a straight | `[Bubble too small]` | Increase `safety_bubble_radius` |
 | Red BUBBLE ate the gap / AIM on a wall | `[Bubble too large]` | Shrink `safety_bubble_radius` |
 

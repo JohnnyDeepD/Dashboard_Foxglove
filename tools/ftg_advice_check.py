@@ -110,6 +110,20 @@ sink, a = run("6. healthy driving (must stay OK)",
 assert a == "OK", f"expected OK, got: {a}"
 assert abs(sink["/debug/ftg/best_offset"].data) < 0.1
 
+# AIM right of center (expected > 0) but steer is negative.
+sink, a = run("6b. steer sign flipped",
+              dict(nearest_dist=1.8, steer=-0.20, speed=1.0, gap=(0, 399),
+                   best_point=250, ranges=np.full(400, 3.0),
+                   angle_increment=0.004, bubble_start=0, bubble_end=20))
+assert "[Steer sign]" in a
+
+sink, a = run("6c. steer sign matches AIM (must stay OK)",
+              dict(nearest_dist=1.8, steer=0.20, speed=1.0, gap=(0, 399),
+                   best_point=250, ranges=np.full(400, 3.0),
+                   angle_increment=0.004, bubble_start=0, bubble_end=20))
+assert a == "OK", f"expected OK, got: {a}"
+assert "[Steer sign]" not in a
+
 sink, a = run("7. only 2 frames of no_gap (must not fire yet)",
               dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap=(None, None)), frames=2)
 assert a == "OK", f"expected OK, got: {a}"
