@@ -403,6 +403,10 @@ class FtgDebugPublisher:
         self._bubble_large_beams = 80.0
         self._aim_wall = 0.8
         self._turning = 0.5
+        self._chunk_ratio_min = 1.6
+        self._chunk_ratio_max = 16.0
+        self._chunk_aim_rad = 0.15
+        self._chunk_steer_frac = 0.5
 
         self._nearest_pub = node.create_publisher(Float32, f"{topic_prefix}/nearest_dist", qos)
         self._steer_deg_pub = node.create_publisher(Float32, f"{topic_prefix}/steer_deg", qos)
@@ -414,6 +418,7 @@ class FtgDebugPublisher:
 
         self._prev_steer: Optional[float] = None
         self._close_from_turn = False
+        self._last_looks_chunked = False
         self._counters: dict = {}
         self._warning_log: list = []
         self._latched_tags: set = set()
@@ -470,10 +475,18 @@ class FtgDebugPublisher:
         steer_jump = 0.0 if self._prev_steer is None else abs(float(steer) - self._prev_steer)
         self._prev_steer = float(steer)
         expected_steer = 0.0
+        looks_chunked = self._last_looks_chunked
         if ranges is not None and angle_increment is not None and int(best_point) >= 0:
             n = int(np.asarray(ranges).shape[0])
             if n > 0:
                 expected_steer = (int(best_point) - n // 2) * float(angle_increment)
+                chunk_ratio = self._chunk_ratio(
+                    n, int(best_point), float(steer), float(angle_increment)
+                )
+                looks_chunked = self._looks_chunked(
+                    chunk_ratio, expected_steer, float(steer)
+                )
+                self._last_looks_chunked = looks_chunked
 
         self._nearest_pub.publish(Float32(data=float(nearest_dist)))
         self._steer_deg_pub.publish(Float32(data=float(steer_deg)))
@@ -526,6 +539,7 @@ class FtgDebugPublisher:
             speed=float(speed),
             steer=float(steer),
             expected_steer=expected_steer,
+            looks_chunked=looks_chunked,
         )))
 
     @staticmethod
@@ -543,6 +557,24 @@ class FtgDebugPublisher:
             return start_i, width, aim
         aim = -1 if best_point is None else int(best_point)
         return int(gap_start), float(gap_width), aim
+
+    @staticmethod
+    def _chunk_ratio(n_ranges: int, best_point: int, steer: float, angle_increment: float) -> float:
+        """len(ranges) / processed length implied by the lab steer formula."""
+        if n_ranges <= 0 or abs(angle_increment) < 1e-9:
+            return 1.0
+        n_proc = 2.0 * (float(best_point) - float(steer) / float(angle_increment))
+        if n_proc < 8.0:
+            return 1.0
+        return float(n_ranges) / n_proc
+
+    def _looks_chunked(self, chunk_ratio: float, expected_steer: float, steer: float) -> bool:
+        by_len = self._chunk_ratio_min <= float(chunk_ratio) <= self._chunk_ratio_max
+        by_aim = (
+            abs(expected_steer) > self._chunk_aim_rad
+            and abs(steer) < self._chunk_steer_frac * abs(expected_steer)
+        )
+        return bool(by_len or by_aim)
 
     @staticmethod
     def _aim_in_gap(gap_width: float, gap_start: int, best_point: int) -> float:
@@ -685,6 +717,7 @@ class FtgDebugPublisher:
         speed: float,
         steer: float = 0.0,
         expected_steer: float = 0.0,
+        looks_chunked: bool = False,
     ) -> str:
         import time as _time
         tips = []
@@ -699,10 +732,21 @@ class FtgDebugPublisher:
         elif not too_close:
             self._close_from_turn = False
 
+        chunk_tip = (
+            "[Chunking] Grouping lidar beams into chunks shifts the green "
+            "gap and yellow AIM, so other tips may be wrong. Turn chunk "
+            "averaging off. Smooth with a moving average instead."
+        )
+        chunking = self._persisted("chunking", bool(looks_chunked))
+        if chunking:
+            tips.append(chunk_tip)
+
         # Sign flipped: AIM left (+) but steer is right, or the reverse.
         if self._persisted(
             "steer_sign",
-            abs(expected_steer) > 0.15 and steer * expected_steer < 0,
+            (not chunking)
+            and abs(expected_steer) > 0.15
+            and steer * expected_steer < 0,
         ):
             tips.append(
                 "[Steer sign] Steering is the opposite of the yellow AIM. "
@@ -711,7 +755,10 @@ class FtgDebugPublisher:
 
         # Straight wobble: yellow AIM ball jumps left/right in a corridor.
         #if self._persisted("straight_wobble", steer_jump > self._steer_jump_rad and not turning):
-        if self._persisted("straight_wobble", not turning and abs(best_offset) > 0.4):
+        if self._persisted(
+            "straight_wobble",
+            (not chunking) and not turning and abs(best_offset) > 0.4,
+        ):
             tips.append(
                 "[Straight wobble] The yellow AIM ball is jumping left/right. "
                 #"find_best_point is chasing the farthest beam. 
@@ -724,7 +771,7 @@ class FtgDebugPublisher:
         if self._persisted("bubble_large", bubble_large and (no_gap or aiming_wall)):
             tips.append(
                 "[Bubble too large] The red BUBBLE ate the gap. "
-                "Shrink safety_bubble_radius."
+                "Shrink the safety bubble around the closest obstacle."
             )
 
         # Bubble too small: new scrape on a straight, not leftover from a corner.
@@ -734,16 +781,19 @@ class FtgDebugPublisher:
         ):
             tips.append(
                 "[Bubble too small] The red BUBBLE is tiny. "
-                "Increase safety_bubble_radius."
+                "Increase the safety bubble around the closest obstacle."
             )
 
         # Corner: AIM on the gap edge, and/or still fast while steering hard.
-        if self._persisted("corner_aim", turning and aiming_wall):
+        if self._persisted("corner_aim", (not chunking) and turning and aiming_wall):
             tips.append(
                 "[Corner AIM] The yellow AIM ball is on the wall (edge of "
                 "the green gap). Use the gap midpoint."
             )
-        if self._persisted("corner_speed", turning and speed > 3.0 and too_close):
+        if self._persisted(
+            "corner_speed",
+            (not chunking) and turning and speed > 3.0 and too_close,
+        ):
             tips.append(
                 "[Corner speed] Steering is large and speed is still high. "
                 "Scale speed down when the steering angle is large."
@@ -753,7 +803,8 @@ class FtgDebugPublisher:
         if self._persisted("no_gap", no_gap and not bubble_large):
             tips.append(
                 "[No gap] No beam passed the free-space threshold. "
-                "Lower SAFE_THRESHOLD, or raise RANGE_LIMIT."
+                "Lower the free-space distance cutoff, or raise the "
+                "max lidar range clip."
             )
 
         current_tags = {self._advice_tag(tip) for tip in tips}
@@ -766,13 +817,28 @@ class FtgDebugPublisher:
                     self._latched_tags.discard(tag)
                     self._clear_counts.pop(tag, None)
 
+        new_other = False
         for tip in tips:
             tag = self._advice_tag(tip)
+            if tag == "Chunking":
+                continue
             if tag not in self._latched_tags:
                 self._latched_tags.add(tag)
                 self._clear_counts[tag] = 0
                 ts = _time.strftime("%H:%M:%S")
                 self._warning_log.append(f"[{ts}] {tip}")
+                new_other = True
+
+        last_is_chunking = bool(
+            self._warning_log and "[Chunking]" in self._warning_log[-1]
+        )
+        if chunking and (not last_is_chunking) and (
+            "Chunking" not in self._latched_tags or new_other
+        ):
+            self._latched_tags.add("Chunking")
+            self._clear_counts["Chunking"] = 0
+            ts = _time.strftime("%H:%M:%S")
+            self._warning_log.append(f"[{ts}] {chunk_tip}")
         del self._warning_log[:-100]
 
         return "\n".join(self._warning_log) if self._warning_log else "OK"
