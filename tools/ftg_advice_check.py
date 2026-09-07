@@ -56,6 +56,12 @@ sink, a = run("1b. no gap because bubble ate the scan",
 assert "[Bubble too large]" in a
 assert "[No gap]" not in a
 
+sink, a = run("1c. no gap with radius-10 bubble (must stay No gap)",
+              dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap=(None, None),
+                   bubble_start=0, bubble_end=20))
+assert "[No gap]" in a
+assert "[Bubble too large]" not in a
+
 sink, a = run("2. bubble too small (scraping on a straight)",
               dict(nearest_dist=0.15, steer=-0.05, speed=2.0, gap=(0, 199),
                    bubble_start=0, bubble_end=4))

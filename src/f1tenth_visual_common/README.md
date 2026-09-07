@@ -176,3 +176,5 @@ warning is not printed again until it has been *off* for 10 lidar frames
 (so hitting a wall does not flood the panel). Advice text does not include
 live numbers such as `nearest_dist`, because a changing number was treated
 as a new message every scan.
+
+**Chunk Size in FTG**: changes the visualization of gap and aim orientation. Problem solving on going.
