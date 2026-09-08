@@ -158,6 +158,10 @@ fires on a straight when AIM stays off-center (`abs(best_offset) > 0.4`)
 and is not jumping (stuck farthest beam). They are exclusive. `[Corner AIM]`
 still needs turning, so it does not overlap. Race midpoint bias looks like
 `[Far AIM]`; we do not special-case it. Both are off while `[Chunking]` is on.
+Artificial ±1 m range noise can flip jump vs stuck, so after 20 clear
+frames (`rearm`) a new wobble/Far AIM line can appear. That demo is
+extreme; leave it. Do not raise rearm. If student logs actually stack
+those two, stop counting one as “off” while the other is on.
 
 `[Chunking]` fires if the lab-formula length ratio is about 2 or more. It
 suppresses `[Steer sign]`, `[Straight wobble]`, `[Far AIM]`, and the corner tips. The
@@ -229,7 +233,7 @@ Recommended topic setup in Foxglove:
 
 # Problem Solving
 **Advice panel:** the log keeps different warnings as they appear. The same
-warning is not printed again until it has been *off* for 10 lidar frames
+warning is not printed again until it has been *off* for 20 lidar frames
 (so hitting a wall does not flood the panel). Advice text does not include
 live numbers such as `nearest_dist`, because a changing number was treated
 as a new message every scan.
