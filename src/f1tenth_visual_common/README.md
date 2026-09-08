@@ -167,13 +167,31 @@ A safe forward slice is about `[100:980]` to `[120:960]`. It does not fire
 while `[Chunking]` is on.
 
 `[Steer units]` fires if `|steer| > 1.5` (a car is ~0.42 rad max), unless
-that value already matches the AIM angle. It does not fire while
-`[Chunking]` is on.
+that value already matches the AIM angle. That also catches a beam index
+used as steering (`* angle_increment` missing) once AIM is 2+ beams off
+center. It does not fire while `[Chunking]` is on. A degrees-sized
+`steer` is not treated as a corner.
 
 `[Bubble too large]` fires when the bubble is ≥ 80 beams and there is no gap, or AIM is on the wall. In that case `[No gap]` is not printed (the bubble ate the space, it is not a threshold bug).
 
 `[Bubble too small]` does not fire on leftover closeness after a turn (only a new scrape on a straight).
 We do not warn for “cutting the inside” or “not turning enough” — those are too vague to tell the student what to change.
+
+**Not added (on purpose).** Add one tip at a time; the stacked chunk/AIM/wobble
+change broke corners.
+
+- `window_start` vs slice equality — `[Rear scan]` is enough for an uncropped
+  scan; comparing to `scan.ranges[...]` false-fires on processed ranges
+- `[AIM behind]` (mixed indices / AIM drawn behind the car) — not the same
+  as `[Rear scan]`; wait until that shows up in 3D
+- `[Far AIM]` split from `[Straight wobble]` — do not bundle; wobble is still
+  offset-based
+- Chunking from “steer much smaller than AIM” — `steer=0` looked like chunking
+- `turning` from “steer vs recent” — a held corner looks straight
+- `turning` threshold `|steer| > 0.15` instead of `0.5 * 0.4189` — retunes
+  wobble and corner together; wait for a small-max-steer student
+- Do not make every new tip suppress sign / wobble / corner (only `[Chunking]`
+  does that)
 
 ---
 
