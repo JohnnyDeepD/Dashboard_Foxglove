@@ -187,7 +187,12 @@ and `|steer| < 0.06`. It does not fire while `[Chunking]` or
 
 `[Bubble too large]` fires when the bubble is ≥ 80 beams and there is no gap, or AIM is on the wall. In that case `[No gap]` is not printed (the bubble ate the space, it is not a threshold bug).
 
-`[Bubble too small]` does not fire on leftover closeness after a turn (only a new scrape on a straight).
+`[Bubble too small]` fires when the bubble is < 16 beams, you scrape on a
+straight, and it is not leftover from a turn. Lab radius 10 (~20 beams)
+sits in the quiet band. Students pick many sizes; we only warn when the
+car actually breaks, not “use 10”. Do not retune 16 / 80 until we see
+false positives.
+
 We do not warn for “cutting the inside” or “not turning enough” — those are too vague to tell the student what to change.
 
 **Not added (on purpose).** Add one tip at a time; the stacked chunk/AIM/wobble
