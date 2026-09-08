@@ -149,6 +149,7 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 | Green gap / yellow AIM sit at the wrong angle | `[Chunking]` | Turn off chunk averaging; use a moving average |
 | The lidar window includes beams behind the car | `[Rear scan]` | Use only the forward slice |
 | Steering is huge (degrees or a beam index) | `[Steer units]` | Use a radian steering angle |
+| Yellow AIM is off to the side, steering is ~0 | `[Steer unused]` | Convert the AIM beam to a steering angle in radians |
 
 `[Chunking]` fires if the lab-formula length ratio is about 2 or more. It
 suppresses `[Steer sign]`, `[Straight wobble]`, and the corner tips. The
@@ -171,6 +172,10 @@ that value already matches the AIM angle. That also catches a beam index
 used as steering (`* angle_increment` missing) once AIM is 2+ beams off
 center. It does not fire while `[Chunking]` is on. A degrees-sized
 `steer` is not treated as a corner.
+
+`[Steer unused]` fires if the AIM angle is more than 0.15 rad off center
+and `|steer| < 0.06`. It does not fire while `[Chunking]` or
+`[Steer units]` is on.
 
 `[Bubble too large]` fires when the bubble is ≥ 80 beams and there is no gap, or AIM is on the wall. In that case `[No gap]` is not printed (the bubble ate the space, it is not a threshold bug).
 

@@ -407,6 +407,7 @@ class FtgDebugPublisher:
         self._chunk_ratio_max = 16.0
         self._rear_scan_rad = 2.0
         self._steer_as_deg = 1.5
+        self._steer_idle = 0.06
 
         self._nearest_pub = node.create_publisher(Float32, f"{topic_prefix}/nearest_dist", qos)
         self._steer_deg_pub = node.create_publisher(Float32, f"{topic_prefix}/steer_deg", qos)
@@ -761,6 +762,19 @@ class FtgDebugPublisher:
             tips.append(
                 "[Steer units] Steering is far larger than a typical car "
                 "angle. Use radians, not degrees or a beam index."
+            )
+
+        if self._persisted(
+            "steer_unused",
+            (not chunking)
+            and (not looks_degrees)
+            and abs(float(steer)) < self._steer_idle
+            and abs(expected_steer) > 0.15,
+        ):
+            tips.append(
+                "[Steer unused] The yellow AIM is off to the side but "
+                "steering is almost zero. Convert the AIM beam to a "
+                "steering angle in radians."
             )
 
         # Sign flipped: AIM left (+) but steer is right, or the reverse.

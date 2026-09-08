@@ -298,4 +298,24 @@ assert "[Steer units]" in a
 assert "[Corner AIM]" not in a
 assert "[Corner speed]" not in a
 
+sink, a = run(
+    "12. AIM off-center but steer is zero",
+    dict(
+        nearest_dist=1.8,
+        steer=0.0,
+        speed=2.0,
+        gap=(0, 399),
+        best_point=250,
+        ranges=np.full(400, 3.0),
+        angle_increment=0.004,
+        bubble_start=0,
+        bubble_end=20,
+    ),
+)
+assert "[Steer unused]" in a
+assert "[Steer units]" not in a
+assert "[Steer sign]" not in a
+assert "[Straight wobble]" not in a
+assert "[Chunking]" not in a
+
 print("\nALL FTG ADVICE CHECKS PASSED")
