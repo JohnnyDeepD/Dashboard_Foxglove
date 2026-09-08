@@ -140,21 +140,12 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 
 | What you see in 3D | Advice | What to change |
 |---|---|---|
-| Yellow AIM jumps left/right on a straight | `[Straight wobble]` | Aim at the gap midpoint |
-| Yellow AIM sits off-center in a wide gap (not jumping) | `[Far AIM]` | Aim at the gap midpoint, not the farthest beam |
+| Yellow AIM is not in the middle of the green gap (while going straight) | `[Straight wobble]` | Aim at the gap midpoint |
 | Yellow AIM sits on the edge of the green gap | `[Corner AIM]` | Use the gap midpoint |
 | Steering is large, speed is still high, and you are about to hit a wall | `[Corner speed]` | Scale speed down when steering is large |
 | Yellow AIM goes one way, the car steers the other | `[Steer sign]` | Left is positive. Flip the sign of the steering angle |
-| Red BUBBLE is tiny and you get close to a wall on a straight | `[Bubble too small]` | Increase the safety bubble |
-| Red BUBBLE ate the gap / AIM on a wall | `[Bubble too large]` | Shrink the safety bubble |
-| Green gap / yellow AIM sit at the wrong angle | `[Chunking]` | Turn off chunk averaging; use a moving average |
-| Yellow AIM is behind the car | `[AIM behind]` | Same lidar slice for ranges and indices; set window_start |
-| AIM is off to the side, steering is ~0 | `[Steer unused]` | Convert the AIM beam to a steering angle in radians |
-| Steering is huge (looks like degrees) | `[Steer units]` | Use radians |
-
-`[Chunking]` fires if the lab-formula length ratio is about 2 or more.
-It suppresses `[Steer sign]`, `[Straight wobble]`, and the corner tips.
-The line is repeated only after a different tip is logged, not every scan.
+| Red BUBBLE is tiny and you get close to a wall on a straight | `[Bubble too small]` | Increase `safety_bubble_radius` |
+| Red BUBBLE ate the gap / AIM on a wall | `[Bubble too large]` | Shrink `safety_bubble_radius` |
 
 `[Bubble too large]` fires when the bubble is ≥ 80 beams and there is no gap, or AIM is on the wall. In that case `[No gap]` is not printed (the bubble ate the space, it is not a threshold bug).
 
@@ -186,13 +177,4 @@ warning is not printed again until it has been *off* for 10 lidar frames
 live numbers such as `nearest_dist`, because a changing number was treated
 as a new message every scan.
 
-**Chunk Size in FTG**: do not chunk if you use this dashboard. `[Chunking]`
-asks to turn chunk averaging off and smooth with a moving average instead.
-
-**Overlapping FTG advice:** one scene can match two tips (far beam looks
-like a corner; a wobble looks stuck off-center; a huge radian steer looks
-like degrees). Do not reuse one number for two lessons. Split by what
-moved: AIM jumping → `[Straight wobble]` only; AIM stuck off-center in a
-wide gap → `[Far AIM]` only; narrow gap + turning + AIM on the wall →
-`[Corner AIM]`; steer matches AIM → not `[Steer units]`. If it still
-collides, the first matching split wins and the lookalike is off. 
+**Chunk Size in FTG**: changes the visualization of gap and aim orientation. Problem solving on going.
