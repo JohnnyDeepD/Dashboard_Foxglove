@@ -48,7 +48,7 @@ def run(name, kwargs, frames=4):
 
 sink, a = run("1. no gap",
               dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap=(None, None)))
-assert "[No gap]" in a and "SAFE_THRESHOLD" in a
+assert "[No gap]" in a and "free-space" in a
 
 sink, a = run("1b. no gap because bubble ate the scan",
               dict(nearest_dist=1.0, steer=0.0, speed=1.0, gap=(None, None),
@@ -173,5 +173,75 @@ assert all(m.action == 0 for m in markers), "expected all markers ADD"
 assert any(m.text == "AIM" for m in markers)
 assert any(m.text == "BUBBLE" for m in markers)
 assert any(m.id == 0 and len(m.points) >= 3 for m in markers)
+
+# CHUNK_SIZE=3: n_proc=280 on an 840-beam window. Lab steer at index 160.
+ranges_fwd = np.full(840, 3.0)
+sink, a = run(
+    "9. chunking (must not be steer_sign / wobble / corner)",
+    dict(
+        nearest_dist=1.8,
+        steer=0.08,
+        speed=2.0,
+        gap=(80, 200),
+        best_point=160,
+        ranges=ranges_fwd,
+        angle_increment=0.004,
+        bubble_start=0,
+        bubble_end=20,
+    ),
+)
+assert "[Chunking]" in a and "chunk averaging" in a.lower()
+assert "[Steer sign]" not in a
+assert "[Straight wobble]" not in a
+assert "[Corner AIM]" not in a
+assert "[Corner speed]" not in a
+
+sink, a = run(
+    "9b. matching steer on raw beams (must stay OK)",
+    dict(
+        nearest_dist=1.8,
+        steer=0.20,
+        speed=1.0,
+        gap=(0, 399),
+        best_point=250,
+        ranges=np.full(400, 3.0),
+        angle_increment=0.004,
+        bubble_start=0,
+        bubble_end=20,
+    ),
+)
+assert a == "OK", f"expected OK, got: {a}"
+assert "[Chunking]" not in a
+
+node = FakeNode()
+dbg = FtgDebugPublisher(node)
+chunk_kw = dict(
+    nearest_dist=1.8, steer=0.08, speed=2.0, gap=(80, 200), best_point=160,
+    ranges=ranges_fwd, angle_increment=0.004, bubble_start=0, bubble_end=20,
+)
+for _ in range(4):
+    dbg.publish(**chunk_kw)
+assert node.sink["/debug/ftg/advice"].data.count("[Chunking]") == 1
+for _ in range(4):
+    dbg.publish(
+        nearest_dist=1.0, steer=0.0, speed=1.0, gap=(None, None),
+        bubble_start=0, bubble_end=160,
+    )
+a = node.sink["/debug/ftg/advice"].data
+print("--- 9e. hold chunking across no-gap + intersperse")
+print("   advice:", a.replace("\n", "\n           "))
+assert "[Bubble too large]" in a
+assert a.count("[Chunking]") == 2
+assert "[Steer sign]" not in a
+assert a.find("[Bubble too large]") < a.rfind("[Chunking]")
+
+node = FakeNode()
+dbg = FtgDebugPublisher(node)
+for _ in range(40):
+    dbg.publish(**chunk_kw)
+a = node.sink["/debug/ftg/advice"].data
+print("--- 9f. chunking alone must not flood")
+print("   advice:", a.replace("\n", "\n           "))
+assert a.count("[Chunking]") == 1
 
 print("\nALL FTG ADVICE CHECKS PASSED")
