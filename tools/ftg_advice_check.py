@@ -103,7 +103,7 @@ sink, a = run(
     "4b. farthest AIM (not wobble)",
     dict(
         nearest_dist=1.8,
-        steer=(800 - 420) * 0.004,
+        steer=0.10,
         speed=2.0,
         gap=(0, 839),
         best_point=800,

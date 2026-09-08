@@ -390,7 +390,7 @@ class FtgDebugPublisher:
         collision_dist: float = 0.35,
         steer_jump_rad: float = 0.25, 
         persist_frames: int = 3,
-        rearm_frames: int = 10,
+        rearm_frames: int = 20,
         qos: int = 5,
     ) -> None:
         self._node = node
@@ -814,7 +814,7 @@ class FtgDebugPublisher:
             self._jump_hold = max(0, self._jump_hold - 1)
         jumping = self._jump_hold > 0
         # Straight wobble: AIM / steer actually jumping left-right.
-        if self._persisted("straight_wobble", jumping):
+        if self._persisted("straight_wobble", jumping and not turning):
             tips.append(
                 "[Straight wobble] The yellow AIM ball is jumping left/right. "
                 "Aim at the "
@@ -826,6 +826,7 @@ class FtgDebugPublisher:
             "far_aim",
             (not chunking)
             and (not jumping)
+            and (not turning)
             and wide_gap
             and abs(best_offset) > 0.4,
         ):
