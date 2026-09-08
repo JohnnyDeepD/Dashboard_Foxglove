@@ -140,7 +140,8 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 
 | What you see in 3D | Advice | What to change |
 |---|---|---|
-| Yellow AIM is not in the middle of the green gap (while going straight) | `[Straight wobble]` | Aim at the gap midpoint |
+| Yellow AIM jumps left/right on a straight | `[Straight wobble]` | Aim at the gap midpoint |
+| Yellow AIM sits off-center in a gap (not jumping) | `[Far AIM]` | Aim at the gap midpoint, not the farthest beam |
 | Yellow AIM sits on the edge of the green gap | `[Corner AIM]` | Use the gap midpoint |
 | Steering is large, speed is still high, and you are about to hit a wall | `[Corner speed]` | Scale speed down when steering is large |
 | Yellow AIM goes one way, the car steers the other | `[Steer sign]` | Left is positive. Flip the sign of the steering angle |
@@ -151,15 +152,15 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 | Steering is huge (degrees or a beam index) | `[Steer units]` | Use a radian steering angle |
 | Yellow AIM is off to the side, steering is ~0 | `[Steer unused]` | Convert the AIM beam to a steering angle in radians |
 
-`[Straight wobble]` fires on a straight whenever AIM is off-center
-(`abs(best_offset) > 0.4`), not only when the ball actually jumps. That
-includes a jumping AIM, a stuck farthest-beam AIM (would be `[Far AIM]`
-if we split it), and an intentional race bias off the midpoint. Splitting
-jump vs stuck broke corners last time, so it is still one rule. Race
-students already know FTG; we do not special-case their bias.
+`[Straight wobble]` fires on a straight when the AIM offset jumps by more
+than 0.12 from the last scan (noise / chasing a far beam). `[Far AIM]`
+fires on a straight when AIM stays off-center (`abs(best_offset) > 0.4`)
+and is not jumping (stuck farthest beam). They are exclusive. `[Corner AIM]`
+still needs turning, so it does not overlap. Race midpoint bias looks like
+`[Far AIM]`; we do not special-case it. Both are off while `[Chunking]` is on.
 
 `[Chunking]` fires if the lab-formula length ratio is about 2 or more. It
-suppresses `[Steer sign]`, `[Straight wobble]`, and the corner tips. The
+suppresses `[Steer sign]`, `[Straight wobble]`, `[Far AIM]`, and the corner tips. The
 line is repeated only after a different tip is logged, not every scan.
 
 `[Rear scan]` fires if either end of the passed lidar window is more than
@@ -196,9 +197,6 @@ change broke corners.
   scan; comparing to `scan.ranges[...]` false-fires on processed ranges
 - `[AIM behind]` (mixed indices / AIM drawn behind the car) — not the same
   as `[Rear scan]`; wait until that shows up in 3D
-- `[Far AIM]` split from `[Straight wobble]` — jump vs stuck farthest-beam
-  is the right split, but bundling it broke corners. Wobble stays
-  offset-based for now (see above)
 - Chunking from “steer much smaller than AIM” — `steer=0` looked like chunking
 - `turning` from “steer vs recent” — a held corner looks straight
 - `turning` threshold `|steer| > 0.15` instead of `0.5 * 0.4189` — retunes

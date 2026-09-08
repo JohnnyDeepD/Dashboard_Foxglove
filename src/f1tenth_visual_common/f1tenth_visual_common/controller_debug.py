@@ -408,6 +408,7 @@ class FtgDebugPublisher:
         self._rear_scan_rad = 2.0
         self._steer_as_deg = 1.5
         self._steer_idle = 0.06
+        self._offset_jump_min = 0.12
 
         self._nearest_pub = node.create_publisher(Float32, f"{topic_prefix}/nearest_dist", qos)
         self._steer_deg_pub = node.create_publisher(Float32, f"{topic_prefix}/steer_deg", qos)
@@ -418,6 +419,7 @@ class FtgDebugPublisher:
         self._health_pub = node.create_publisher(DiagnosticStatus, f"{topic_prefix}/health", qos)
 
         self._prev_steer: Optional[float] = None
+        self._prev_offset: Optional[float] = None
         self._close_from_turn = False
         self._last_looks_chunked = False
         self._counters: dict = {}
@@ -475,6 +477,16 @@ class FtgDebugPublisher:
         steer_deg = math.degrees(float(steer))
         steer_jump = 0.0 if self._prev_steer is None else abs(float(steer) - self._prev_steer)
         self._prev_steer = float(steer)
+        if no_gap:
+            offset_jump = 0.0
+            self._prev_offset = None
+        else:
+            offset_jump = (
+                0.0
+                if self._prev_offset is None
+                else abs(float(best_offset) - self._prev_offset)
+            )
+            self._prev_offset = float(best_offset)
         expected_steer = 0.0
         looks_chunked = self._last_looks_chunked
         if ranges is not None and angle_increment is not None and int(best_point) >= 0:
@@ -537,6 +549,7 @@ class FtgDebugPublisher:
             best_offset=best_offset,
             steer_ratio=steer_ratio,
             steer_jump=steer_jump,
+            offset_jump=offset_jump,
             speed=float(speed),
             steer=float(steer),
             expected_steer=expected_steer,
@@ -721,6 +734,7 @@ class FtgDebugPublisher:
         best_offset: float,
         steer_ratio: float,
         steer_jump: float,
+        offset_jump: float = 0.0,
         speed: float,
         steer: float = 0.0,
         expected_steer: float = 0.0,
@@ -789,18 +803,28 @@ class FtgDebugPublisher:
                 "Left is positive."
             )
 
+        jumping = float(offset_jump) > self._offset_jump_min
         # Straight wobble: yellow AIM ball jumps left/right in a corridor.
-        #if self._persisted("straight_wobble", steer_jump > self._steer_jump_rad and not turning):
         if self._persisted(
             "straight_wobble",
-            (not chunking) and not turning and abs(best_offset) > 0.4,
+            (not chunking) and not turning and jumping,
         ):
             tips.append(
                 "[Straight wobble] The yellow AIM ball is jumping left/right. "
-                #"find_best_point is chasing the farthest beam. 
                 "Aim at the "
                 "middle of the green gap"
-                #, and increase SMOOTH_WINDOW."
+            )
+
+        if self._persisted(
+            "far_aim",
+            (not chunking)
+            and not turning
+            and (not jumping)
+            and abs(best_offset) > 0.4,
+        ):
+            tips.append(
+                "[Far AIM] The yellow AIM is not in the middle of the green "
+                "gap. Aim at the gap midpoint, not the farthest beam."
             )
 
         # Bubble ate the scan: leftover gap is gone or AIM sits on a wall.

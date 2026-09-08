@@ -100,11 +100,23 @@ print("--- 3d. still close after a turn (must not be bubble_small)")
 print("   advice:", a.replace("\n", "\n           "))
 assert "[Bubble too small]" not in a
 
-sink, a = run("4. straight wobble (AIM off-center)",
+sink, a = run("4. farthest AIM (stuck off-center, not a jump)",
               dict(nearest_dist=1.8, steer=0.05, speed=2.0, gap=(0, 399),
                    best_point=20, bubble_start=0, bubble_end=20))
-assert "[Straight wobble]" in a
+assert "[Far AIM]" in a
+assert "[Straight wobble]" not in a
 assert abs(sink["/debug/ftg/best_offset"].data) > 0.4
+
+node = FakeNode()
+dbg = FtgDebugPublisher(node)
+for bp in (20, 200, 30, 180, 25):
+    dbg.publish(nearest_dist=1.8, steer=0.05, speed=2.0, gap=(0, 399),
+                best_point=bp, bubble_start=0, bubble_end=20)
+a = node.sink["/debug/ftg/advice"].data
+print("--- 4b. AIM jumping left/right (must be wobble, not far AIM)")
+print("   advice:", a.replace("\n", "\n           "))
+assert "[Straight wobble]" in a
+assert "[Far AIM]" not in a
 
 sink, a = run("5. too fast in the turn and too close",
               dict(nearest_dist=0.15, steer=0.35, speed=5.0, gap=(0, 399),
