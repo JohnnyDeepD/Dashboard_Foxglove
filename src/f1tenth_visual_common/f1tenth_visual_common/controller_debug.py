@@ -406,6 +406,7 @@ class FtgDebugPublisher:
         self._chunk_ratio_min = 1.6
         self._chunk_ratio_max = 16.0
         self._rear_scan_rad = 2.0
+        self._steer_as_deg = 1.5
 
         self._nearest_pub = node.create_publisher(Float32, f"{topic_prefix}/nearest_dist", qos)
         self._steer_deg_pub = node.create_publisher(Float32, f"{topic_prefix}/steer_deg", qos)
@@ -728,7 +729,10 @@ class FtgDebugPublisher:
         import time as _time
         tips = []
         too_close = 0.0 <= nearest_dist < self._collision_dist
-        turning = steer_ratio > self._turning
+        looks_degrees = abs(float(steer)) > self._steer_as_deg
+        if abs(expected_steer) > 0.15 and abs(float(steer) - expected_steer) <= 0.15:
+            looks_degrees = False
+        turning = (not looks_degrees) and steer_ratio > self._turning
         bubble_small = 0.0 <= bubble_beams < self._bubble_small_beams
         bubble_large = bubble_beams >= self._bubble_large_beams
         aiming_wall = abs(best_offset) > self._aim_wall
@@ -751,6 +755,12 @@ class FtgDebugPublisher:
             tips.append(
                 "[Rear scan] The lidar window includes beams behind the car. "
                 "Use only the forward slice."
+            )
+
+        if self._persisted("steer_units", (not chunking) and looks_degrees):
+            tips.append(
+                "[Steer units] Steering is far larger than a typical car "
+                "angle. Use radians, not degrees or a beam index."
             )
 
         # Sign flipped: AIM left (+) but steer is right, or the reverse.

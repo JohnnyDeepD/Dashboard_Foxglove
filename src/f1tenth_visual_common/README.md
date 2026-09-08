@@ -148,6 +148,7 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 | Red BUBBLE ate the gap / AIM on a wall | `[Bubble too large]` | Shrink the safety bubble |
 | Green gap / yellow AIM sit at the wrong angle | `[Chunking]` | Turn off chunk averaging; use a moving average |
 | The lidar window includes beams behind the car | `[Rear scan]` | Use only the forward slice |
+| Steering is huge (degrees or a beam index) | `[Steer units]` | Use a radian steering angle |
 
 `[Chunking]` fires if the lab-formula length ratio is about 2 or more. It
 suppresses `[Steer sign]`, `[Straight wobble]`, and the corner tips. The
@@ -164,6 +165,10 @@ of that slice). On a typical 270° / ~1080-beam lidar that means:
 
 A safe forward slice is about `[100:980]` to `[120:960]`. It does not fire
 while `[Chunking]` is on.
+
+`[Steer units]` fires if `|steer| > 1.5` (a car is ~0.42 rad max), unless
+that value already matches the AIM angle. It does not fire while
+`[Chunking]` is on.
 
 `[Bubble too large]` fires when the bubble is ≥ 80 beams and there is no gap, or AIM is on the wall. In that case `[No gap]` is not printed (the bubble ate the space, it is not a threshold bug).
 

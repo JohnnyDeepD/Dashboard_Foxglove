@@ -282,4 +282,20 @@ sink, a = run(
 assert a == "OK", f"expected OK, got: {a}"
 assert "[Rear scan]" not in a
 
+sink, a = run(
+    "11. steer in degrees / beam index (must not be a corner)",
+    dict(
+        nearest_dist=1.8,
+        steer=15.0,
+        speed=2.0,
+        gap=(100, 499),
+        best_point=300,
+        bubble_start=0,
+        bubble_end=20,
+    ),
+)
+assert "[Steer units]" in a
+assert "[Corner AIM]" not in a
+assert "[Corner speed]" not in a
+
 print("\nALL FTG ADVICE CHECKS PASSED")
