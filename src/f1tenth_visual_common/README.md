@@ -151,6 +151,13 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 | Steering is huge (degrees or a beam index) | `[Steer units]` | Use a radian steering angle |
 | Yellow AIM is off to the side, steering is ~0 | `[Steer unused]` | Convert the AIM beam to a steering angle in radians |
 
+`[Straight wobble]` fires on a straight whenever AIM is off-center
+(`abs(best_offset) > 0.4`), not only when the ball actually jumps. That
+includes a jumping AIM, a stuck farthest-beam AIM (would be `[Far AIM]`
+if we split it), and an intentional race bias off the midpoint. Splitting
+jump vs stuck broke corners last time, so it is still one rule. Race
+students already know FTG; we do not special-case their bias.
+
 `[Chunking]` fires if the lab-formula length ratio is about 2 or more. It
 suppresses `[Steer sign]`, `[Straight wobble]`, and the corner tips. The
 line is repeated only after a different tip is logged, not every scan.
@@ -189,8 +196,9 @@ change broke corners.
   scan; comparing to `scan.ranges[...]` false-fires on processed ranges
 - `[AIM behind]` (mixed indices / AIM drawn behind the car) — not the same
   as `[Rear scan]`; wait until that shows up in 3D
-- `[Far AIM]` split from `[Straight wobble]` — do not bundle; wobble is still
-  offset-based
+- `[Far AIM]` split from `[Straight wobble]` — jump vs stuck farthest-beam
+  is the right split, but bundling it broke corners. Wobble stays
+  offset-based for now (see above)
 - Chunking from “steer much smaller than AIM” — `steer=0` looked like chunking
 - `turning` from “steer vs recent” — a held corner looks straight
 - `turning` threshold `|steer| > 0.15` instead of `0.5 * 0.4189` — retunes
