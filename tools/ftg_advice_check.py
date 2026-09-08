@@ -80,11 +80,61 @@ sink, a = run("3b. too close while turning, AIM centered (must stay OK)",
 assert a == "OK", f"expected OK, got: {a}"
 assert "[Bubble too small]" not in a
 
-sink, a = run("4. straight wobble (AIM off-center)",
-              dict(nearest_dist=1.8, steer=0.05, speed=2.0, gap=(0, 399),
-                   best_point=20, bubble_start=0, bubble_end=20))
+node = FakeNode()
+dbg = FtgDebugPublisher(node)
+for i in range(5):
+    dbg.publish(
+        nearest_dist=1.8,
+        steer=0.15 if i % 2 else -0.15,
+        speed=2.0,
+        gap=(0, 399),
+        best_point=200,
+        bubble_start=0,
+        bubble_end=20,
+    )
+a = node.sink["/debug/ftg/advice"].data
+print("--- 4. midpoint AIM + steer wiggle (must not be wobble)")
+print("   advice:", a.replace("\n", "\n           "))
+assert "[Straight wobble]" not in a
+assert "[Far AIM]" not in a
+
+# Farthest-beam AIM sits still: not a jump, not degrees, not a corner.
+sink, a = run(
+    "4b. farthest AIM (not wobble)",
+    dict(
+        nearest_dist=1.8,
+        steer=(800 - 420) * 0.004,
+        speed=2.0,
+        gap=(0, 839),
+        best_point=800,
+        ranges=np.full(840, 3.0),
+        angle_increment=0.004,
+        bubble_start=0,
+        bubble_end=20,
+    ),
+)
+assert "[Far AIM]" in a
+assert "[Straight wobble]" not in a
+assert "[Steer units]" not in a
+assert "[Corner AIM]" not in a
+
+node = FakeNode()
+dbg = FtgDebugPublisher(node)
+for i in range(6):
+    dbg.publish(
+        nearest_dist=1.8,
+        steer=0.05,
+        speed=2.0,
+        gap=(0, 839),
+        best_point=350 if i % 2 else 520,
+        bubble_start=0,
+        bubble_end=20,
+    )
+a = node.sink["/debug/ftg/advice"].data
+print("--- 4c. AIM offset jump (wobble, not far AIM)")
+print("   advice:", a.replace("\n", "\n           "))
 assert "[Straight wobble]" in a
-assert abs(sink["/debug/ftg/best_offset"].data) > 0.4
+assert "[Far AIM]" not in a
 
 sink, a = run("5. too fast in the turn and too close",
               dict(nearest_dist=0.15, steer=0.35, speed=5.0, gap=(0, 399),
@@ -185,9 +235,8 @@ sink, a = run(
 assert a == "OK", f"expected OK, got: {a}"
 assert "[Chunking]" not in a
 
-# Method 1 only: always-zero steer, AIM off-center on a raw-length window.
 sink, a = run(
-    "9d. chunking from AIM vs steer (lab length ratio ~1.4)",
+    "9d. steer unused (must not be chunking)",
     dict(
         nearest_dist=1.8,
         steer=0.0,
@@ -200,7 +249,36 @@ sink, a = run(
         bubble_end=20,
     ),
 )
-assert "[Chunking]" in a
+assert "[Steer unused]" in a
+assert "[Chunking]" not in a
+
+sink, a = run(
+    "10. AIM behind (wrong window_start)",
+    dict(
+        nearest_dist=1.8,
+        steer=0.10,
+        speed=2.0,
+        gap=(0, 40),
+        best_point=0,
+        ranges=np.full(80, 3.0),
+        angle_increment=0.004,
+        angle_min=-2.35,
+        window_start=0,
+        bubble_start=0,
+        bubble_end=8,
+    ),
+)
+assert "[AIM behind]" in a
+assert "[Chunking]" not in a
+
+sink, a = run(
+    "11. steer in degrees",
+    dict(nearest_dist=1.8, steer=15.0, speed=2.0, gap=(100, 499),
+         best_point=300, bubble_start=0, bubble_end=20),
+)
+assert "[Steer units]" in a
+assert "[Corner AIM]" not in a
+assert "[Corner speed]" not in a
 
 node = FakeNode()
 dbg = FtgDebugPublisher(node)
