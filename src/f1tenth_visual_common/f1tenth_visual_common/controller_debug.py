@@ -405,6 +405,7 @@ class FtgDebugPublisher:
         self._turning = 0.5
         self._chunk_ratio_min = 1.6
         self._chunk_ratio_max = 16.0
+        self._rear_scan_rad = 2.0
 
         self._nearest_pub = node.create_publisher(Float32, f"{topic_prefix}/nearest_dist", qos)
         self._steer_deg_pub = node.create_publisher(Float32, f"{topic_prefix}/steer_deg", qos)
@@ -482,6 +483,9 @@ class FtgDebugPublisher:
                     self._chunk_ratio(n, int(best_point), float(steer), float(angle_increment))
                 )
                 self._last_looks_chunked = looks_chunked
+        looks_rear = self._looks_rear(
+            ranges, angle_min, angle_increment, int(window_start)
+        )
 
         self._nearest_pub.publish(Float32(data=float(nearest_dist)))
         self._steer_deg_pub.publish(Float32(data=float(steer_deg)))
@@ -535,6 +539,7 @@ class FtgDebugPublisher:
             steer=float(steer),
             expected_steer=expected_steer,
             looks_chunked=looks_chunked,
+            looks_rear=looks_rear,
         )))
 
     @staticmethod
@@ -565,6 +570,16 @@ class FtgDebugPublisher:
 
     def _looks_chunked(self, chunk_ratio: float) -> bool:
         return self._chunk_ratio_min <= float(chunk_ratio) <= self._chunk_ratio_max
+
+    def _looks_rear(self, ranges, angle_min, angle_increment, window_start: int) -> bool:
+        if ranges is None or angle_min is None or angle_increment is None:
+            return False
+        n = int(np.asarray(ranges).shape[0])
+        if n <= 0:
+            return False
+        start = float(angle_min) + float(window_start) * float(angle_increment)
+        end = float(angle_min) + float(window_start + n - 1) * float(angle_increment)
+        return abs(start) > self._rear_scan_rad or abs(end) > self._rear_scan_rad
 
     @staticmethod
     def _aim_in_gap(gap_width: float, gap_start: int, best_point: int) -> float:
@@ -708,6 +723,7 @@ class FtgDebugPublisher:
         steer: float = 0.0,
         expected_steer: float = 0.0,
         looks_chunked: bool = False,
+        looks_rear: bool = False,
     ) -> str:
         import time as _time
         tips = []
@@ -730,6 +746,12 @@ class FtgDebugPublisher:
         chunking = self._persisted("chunking", bool(looks_chunked))
         if chunking:
             tips.append(chunk_tip)
+
+        if self._persisted("rear_scan", (not chunking) and bool(looks_rear)):
+            tips.append(
+                "[Rear scan] The lidar window includes beams behind the car. "
+                "Use only the forward slice."
+            )
 
         # Sign flipped: AIM left (+) but steer is right, or the reverse.
         if self._persisted(

@@ -244,4 +244,42 @@ print("--- 9f. chunking alone must not flood")
 print("   advice:", a.replace("\n", "\n           "))
 assert a.count("[Chunking]") == 1
 
+sink, a = run(
+    "10. full scan includes the rear",
+    dict(
+        nearest_dist=1.8,
+        steer=0.0,
+        speed=2.0,
+        gap=(400, 679),
+        best_point=540,
+        ranges=np.full(1080, 3.0),
+        angle_increment=0.004,
+        angle_min=-2.35,
+        window_start=0,
+        bubble_start=0,
+        bubble_end=20,
+    ),
+)
+assert "[Rear scan]" in a
+assert "[Chunking]" not in a
+
+sink, a = run(
+    "10b. forward slice (must not be rear scan)",
+    dict(
+        nearest_dist=1.8,
+        steer=0.0,
+        speed=2.0,
+        gap=(200, 639),
+        best_point=420,
+        ranges=np.full(840, 3.0),
+        angle_increment=0.004,
+        angle_min=-2.35,
+        window_start=120,
+        bubble_start=0,
+        bubble_end=20,
+    ),
+)
+assert a == "OK", f"expected OK, got: {a}"
+assert "[Rear scan]" not in a
+
 print("\nALL FTG ADVICE CHECKS PASSED")
