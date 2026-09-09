@@ -154,9 +154,11 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 `[Straight wobble]` fires on a straight when the AIM offset jumps by more
 than 0.12 from the last scan (noise / chasing a far beam). `[Far AIM]`
 fires on a straight when AIM stays off-center (`abs(best_offset) > 0.4`)
-and is not jumping (stuck farthest beam). They are exclusive. `[Corner AIM]`
-still needs turning, so it does not overlap. Race midpoint bias looks like
-`[Far AIM]`; we do not special-case it. Both are off while `[Chunking]` is on.
+and more than 25 beams from the gap midpoint, and is not jumping (stuck
+farthest beam). The lab search of midpoint ±25 does not fire. They are
+exclusive. `[Corner AIM]` still needs turning, so it does not overlap.
+Race midpoint bias looks like `[Far AIM]`; we do not special-case it.
+Both are off while `[Chunking]` is on.
 Artificial ±1 m range noise can flip jump vs stuck, so after 20 clear
 frames (`rearm`) a new wobble/Far AIM line can appear. That demo is
 extreme; leave it. Do not raise rearm. If student logs actually stack

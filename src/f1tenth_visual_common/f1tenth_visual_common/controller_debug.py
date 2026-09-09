@@ -476,6 +476,7 @@ class FtgDebugPublisher:
 
         no_gap = float(gap_width) <= 0.0
         best_offset = self._aim_in_gap(float(gap_width), int(gap_start), int(best_point))
+        gap_center = float(gap_start) + 0.5 * (float(gap_width) - 1.0)
         steer_ratio = abs(float(steer)) / self._steer_limit
         steer_deg = math.degrees(float(steer))
         steer_jump = 0.0 if self._prev_steer is None else abs(float(steer) - self._prev_steer)
@@ -558,6 +559,8 @@ class FtgDebugPublisher:
             expected_steer=expected_steer,
             looks_chunked=looks_chunked,
             looks_rear=looks_rear,
+            best_point=int(best_point),
+            gap_center=gap_center,
         )))
 
     @staticmethod
@@ -757,6 +760,8 @@ class FtgDebugPublisher:
         expected_steer: float = 0.0,
         looks_chunked: bool = False,
         looks_rear: bool = False,
+        best_point: int = -1,
+        gap_center: float = 0.0,
     ) -> str:
         import time as _time
         tips = []
@@ -837,7 +842,8 @@ class FtgDebugPublisher:
             (not chunking)
             and not turning
             and (not jumping)
-            and abs(best_offset) > 0.4,
+            and abs(best_offset) > 0.4
+            and abs(best_point - gap_center) > 25,
         ):
             tips.append(
                 "[Far AIM] The yellow AIM is not in the middle of the green "

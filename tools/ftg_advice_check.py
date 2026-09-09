@@ -107,6 +107,12 @@ assert "[Far AIM]" in a
 assert "[Straight wobble]" not in a
 assert abs(sink["/debug/ftg/best_offset"].data) > 0.4
 
+sink, a = run("4c. midpoint ±25 farthest (must not be Far AIM)",
+              dict(nearest_dist=1.8, steer=0.05, speed=2.0, gap=(0, 99),
+                   best_point=70, bubble_start=0, bubble_end=20))
+assert "[Far AIM]" not in a
+assert abs(sink["/debug/ftg/best_offset"].data) > 0.4
+
 node = FakeNode()
 dbg = FtgDebugPublisher(node)
 for bp in (20, 200, 30, 180, 25):
