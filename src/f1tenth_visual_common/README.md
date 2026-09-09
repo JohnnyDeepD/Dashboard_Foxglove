@@ -125,7 +125,6 @@ self._debug = FtgDebugPublisher(self)
 self._debug.publish(
     scan=data,
     ranges=forward_lidar,
-    window_start=120,          # first index of your lidar slice
     steer=steering_command,
     speed=velocity_command,
     gap=gap,                   # (start, end) or (None, None)
@@ -240,3 +239,6 @@ as a new message every scan.
 
 **Chunk Size in FTG**: do not chunk if you use this dashboard. `[Chunking]`
 asks to turn chunk averaging off and smooth with a moving average instead.
+
+**ranges**: Students might use processed lidar ranges or the original ranges, consider both cases -> infer it by 
+(len(scan.ranges) - len(ranges)) // 2

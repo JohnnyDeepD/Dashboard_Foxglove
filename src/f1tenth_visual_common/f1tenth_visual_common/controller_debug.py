@@ -434,7 +434,7 @@ class FtgDebugPublisher:
         speed: float = 0.0,
         scan=None,
         ranges: Optional[np.ndarray] = None,
-        window_start: int = 0,
+        window_start: Optional[int] = None,
         gap=None,
         best_point: Optional[int] = None,
         nearest_index: int = -1,
@@ -459,6 +459,9 @@ class FtgDebugPublisher:
             if angle_min is None:
                 angle_min = float(scan.angle_min)
             frame_id = str(getattr(scan.header, "frame_id", None) or frame_id)
+
+        if window_start is None:
+            window_start = self._infer_window_start(scan, ranges)
 
         gap_start, gap_width, best_point = self._unpack_gap(
             gap, gap_width, gap_start, best_point
@@ -585,6 +588,20 @@ class FtgDebugPublisher:
 
     def _looks_chunked(self, chunk_ratio: float) -> bool:
         return self._chunk_ratio_min <= float(chunk_ratio) <= self._chunk_ratio_max
+
+    @staticmethod
+    def _infer_window_start(scan, ranges) -> int:
+        """Centered crop: processed index 0 is the first beam of that window."""
+        if scan is None or ranges is None:
+            return 0
+        scan_ranges = getattr(scan, "ranges", None)
+        if scan_ranges is None:
+            return 0
+        n_scan = len(scan_ranges)
+        n = int(np.asarray(ranges).shape[0])
+        if n_scan <= 0 or n <= 0 or n > n_scan:
+            return 0
+        return (n_scan - n) // 2
 
     def _looks_rear(self, ranges, angle_min, angle_increment, window_start: int) -> bool:
         if ranges is None or angle_min is None or angle_increment is None:

@@ -294,6 +294,33 @@ sink, a = run(
 assert a == "OK", f"expected OK, got: {a}"
 assert "[Rear scan]" not in a
 
+class _Scan:
+    def __init__(self):
+        self.ranges = [3.0] * 1080
+        self.angle_min = -2.35
+        self.angle_increment = 0.004
+        self.header = type("H", (), {"frame_id": "laser"})()
+
+fwd = dict(
+    nearest_dist=1.8,
+    steer=0.0,
+    speed=2.0,
+    gap=(200, 639),
+    best_point=420,
+    ranges=np.full(840, 3.0),
+    scan=_Scan(),
+    bubble_start=0,
+    bubble_end=20,
+)
+sink_infer, a = run("10c. inferred window_start from scan length", fwd)
+sink_explicit, _ = run("10c-ref. same with window_start=120", {**fwd, "window_start": 120})
+assert a == "OK", f"expected OK, got: {a}"
+assert "[Rear scan]" not in a
+aim_infer = next(m.pose.position for m in sink_infer["/debug/ftg/markers"].markers if m.text == "AIM")
+aim_explicit = next(m.pose.position for m in sink_explicit["/debug/ftg/markers"].markers if m.text == "AIM")
+assert abs(aim_infer.x - aim_explicit.x) < 1e-9
+assert abs(aim_infer.y - aim_explicit.y) < 1e-9
+
 sink, a = run(
     "11. steer in degrees / beam index (must not be a corner)",
     dict(
