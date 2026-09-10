@@ -168,7 +168,10 @@ positive beam just outside the zero run, so it sits on the wall and
 scales with the bubble width. The disc is drawn at **6×** that width
 so it is visible in Foxglove; that is not the true meter size. `[Bubble
 too small]` / `[Bubble too large]` still use beam count, not the
-enlarged disc.
+enlarged disc. The meter radius before that 6× is
+`dist * tan(half_beams * angle_increment)`, where `half_beams` is half
+the zeroed run (N beams / 2). That turns the angular bubble into a
+circle on the wall.
 
 After `colcon build`, source `install/setup.bash` so the node picks up this publisher.
 
