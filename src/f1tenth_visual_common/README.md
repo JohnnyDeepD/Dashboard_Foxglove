@@ -124,7 +124,7 @@ self._debug = FtgDebugPublisher(self)
 # scan=data is the LaserScan callback argument — leave it as-is.
 self._debug.publish(
     scan=data,
-    ranges=proc_ranges,        # ranges after pre processed, the one actually used in FTG
+    ranges=proc_ranges,        # ranges after pre processed, the one actually used in gap,aim, bubble calculation
     steer=steering_command,
     speed=velocity_command,
     gap=gap,                   # (start, end) or (None, None)
@@ -141,8 +141,8 @@ self._debug.publish(
         #foxglove dashboard
         self._debug.publish(
             scan=data,
-            ranges=forward_lidar,
             #ranges=proc_ranges,
+            ranges=forward_lidar,           #only if no pre process was used!
             window_start=120,               #lidar window start index
             steer=steering_command,
             speed=velocity_command,
