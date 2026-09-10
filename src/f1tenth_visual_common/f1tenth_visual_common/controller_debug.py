@@ -782,7 +782,8 @@ class FtgDebugPublisher:
             elif bubble_beams > 0.0:
                 half_beams = 0.5 * bubble_beams
             dist = math.hypot(*near_xy)
-            radius = max(0.05, dist * math.tan(max(half_beams, 1.0) * angle_increment))
+            # 6x for Foxglove visibility; not the true meter width of the beams.
+            radius = max(0.05, 6 * dist * math.tan(max(half_beams, 1.0) * angle_increment))
             disc.pose.position.x, disc.pose.position.y = near_xy
             disc.pose.position.z = 0.03
             disc.scale.x = disc.scale.y = 2.0 * radius

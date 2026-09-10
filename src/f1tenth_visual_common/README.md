@@ -156,9 +156,19 @@ self._debug.publish(
 ```
 Pass the array you actually run FTG on. After preprocess that is
 `proc_ranges`; if you skip preprocess, pass `forward_lidar`. The
-publisher infers `window_start` and the red BUBBLE from a zeroed run
-in `ranges`. You can still pass `bubble_start` / `bubble_end` /
-`nearest_index` to override.
+publisher infers `window_start` from `(len(scan.ranges) - len(ranges)) // 2`
+and the red BUBBLE from the longest ≤0 run in `ranges`. You can still
+pass `bubble_start` / `bubble_end` / `nearest_index` to override. Advice
+uses that beam count (16 / 80). It does not re-apply the lab ±10 formula.
+
+The zeroed beams have no range, so an earlier draw used
+`nearest_dist` (closest leftover beam). The disc sat off the wall and
+barely grew when `safety_bubble_radius` changed. It now uses the first
+positive beam just outside the zero run, so it sits on the wall and
+scales with the bubble width. The disc is drawn at **6×** that width
+so it is visible in Foxglove; that is not the true meter size. `[Bubble
+too small]` / `[Bubble too large]` still use beam count, not the
+enlarged disc.
 
 After `colcon build`, source `install/setup.bash` so the node picks up this publisher.
 
@@ -266,6 +276,15 @@ as a new message every scan.
 
 **Chunk Size in FTG**: do not chunk if you use this dashboard. `[Chunking]`
 asks to turn chunk averaging off and smooth with a moving average instead.
+--> changes after problem solving
+**Chunk Size in FTG**: `[Chunking]` still fires only on the lab-formula
+length ratio (about 2+). Passing `proc_ranges` after chunking makes that
+ratio ~1, so the tip usually stays off. The table line is the old
+“turn chunking off” contract; we do not ask for `chunk_size` yet.
 
 **ranges**: Students might use processed lidar ranges or the original ranges, consider both cases -> infer it by 
 (len(scan.ranges) - len(ranges)) // 2
+--> changes after problem solving
+**window_start**: students may pass `proc_ranges` or `forward_lidar`.
+The start index is inferred as `(len(scan.ranges) - len(ranges)) // 2`
+(centered crop). That is `window_start`, not `ranges` itself.
