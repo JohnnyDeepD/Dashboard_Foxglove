@@ -154,6 +154,11 @@ self._debug.publish(
             #chunk_size=CHUNK_SIZE,  # added for chunking
         )
 ```
+Pass the array you actually run FTG on. After preprocess that is
+`proc_ranges`; if you skip preprocess, pass `forward_lidar`. The
+publisher infers `window_start` and the red BUBBLE from a zeroed run
+in `ranges`. You can still pass `bubble_start` / `bubble_end` /
+`nearest_index` to override.
 
 After `colcon build`, source `install/setup.bash` so the node picks up this publisher.
 

@@ -451,7 +451,8 @@ class FtgDebugPublisher:
         """Publish advice plus the 3D gap / aim / bubble markers.
 
         Students pass ``scan``, ``ranges``, ``gap``, and the indices they
-        already have. Width / scan angles / nearest distance are derived here.
+        already have. Width / scan angles / nearest distance / bubble
+        (zeroed run in ``ranges``) are derived here.
         """
         if scan is not None:
             if angle_increment is None:
@@ -466,8 +467,16 @@ class FtgDebugPublisher:
         gap_start, gap_width, best_point = self._unpack_gap(
             gap, gap_width, gap_start, best_point
         )
+        if bubble_start is None and bubble_end is None:
+            bubble_start, bubble_end, inferred_nearest = self._infer_bubble(ranges)
+            if nearest_index < 0:
+                nearest_index = inferred_nearest
+        elif nearest_index < 0 and bubble_start is not None and bubble_end is not None:
+            nearest_index = (int(bubble_start) + int(bubble_end)) // 2
         if bubble_start is not None and bubble_end is not None and float(bubble_beams) < 0.0:
             bubble_beams = float(max(0, int(bubble_end) - int(bubble_start)))
+        elif ranges is not None and float(bubble_beams) < 0.0:
+            bubble_beams = 0.0
         if ranges is not None and nearest_dist < 0.0:
             arr = np.asarray(ranges, dtype=float)
             finite = arr[np.isfinite(arr) & (arr > 0.0)]
@@ -606,6 +615,49 @@ class FtgDebugPublisher:
             return 0
         return (n_scan - n) // 2
 
+    @staticmethod
+    def _infer_bubble(ranges):
+        """Longest <=0 run in published ranges. Slice is [start, end)."""
+        if ranges is None:
+            return None, None, -1
+        arr = np.asarray(ranges, dtype=float)
+        n = int(arr.shape[0])
+        if n <= 0:
+            return None, None, -1
+        cleared = ~np.isfinite(arr) | (arr <= 0.0)
+        best_s = best_e = -1
+        best_n = 0
+        i = 0
+        while i < n:
+            if not cleared[i]:
+                i += 1
+                continue
+            j = i + 1
+            while j < n and cleared[j]:
+                j += 1
+            if j - i > best_n:
+                best_n = j - i
+                best_s, best_e = i, j
+            i = j
+        if best_n <= 0:
+            return None, None, -1
+        return best_s, best_e, best_s + best_n // 2
+
+    @staticmethod
+    def _bubble_wall_range(ranges, bubble_start, bubble_end) -> Optional[float]:
+        """Closest positive range just outside the zeroed bubble."""
+        if ranges is None or bubble_start is None or bubble_end is None:
+            return None
+        arr = np.asarray(ranges, dtype=float)
+        n = int(arr.shape[0])
+        best = None
+        for i in (int(bubble_start) - 1, int(bubble_end)):
+            if 0 <= i < n:
+                r = float(arr[i])
+                if math.isfinite(r) and r > 0.05 and (best is None or r < best):
+                    best = r
+        return best
+
     def _looks_rear(self, ranges, angle_min, angle_increment, window_start: int) -> bool:
         if ranges is None or angle_min is None or angle_increment is None:
             return False
@@ -714,6 +766,13 @@ class FtgDebugPublisher:
 
         # Red disc around the closest obstacle = the safety bubble.
         near_xy = xy(nearest_index)
+        wall_r = self._bubble_wall_range(ranges, bubble_start, bubble_end)
+        if near_xy is None and 0 <= nearest_index < int(ranges.shape[0]):
+            r = wall_r if wall_r is not None else (
+                nearest_dist if nearest_dist > 0.05 else 0.2
+            )
+            angle = angle_min + float(window_start + nearest_index) * angle_increment
+            near_xy = (r * math.cos(angle), r * math.sin(angle))
         disc = base(4, Marker.CYLINDER)
         bubble_label = base(5, Marker.TEXT_VIEW_FACING)
         if near_xy is not None:
@@ -722,8 +781,8 @@ class FtgDebugPublisher:
                 half_beams = 0.5 * max(0, int(bubble_end) - int(bubble_start))
             elif bubble_beams > 0.0:
                 half_beams = 0.5 * bubble_beams
-            dist = nearest_dist if nearest_dist > 0.05 else math.hypot(*near_xy)
-            radius = max(0.12, dist * math.tan(max(half_beams, 1.0) * angle_increment))
+            dist = math.hypot(*near_xy)
+            radius = max(0.05, dist * math.tan(max(half_beams, 1.0) * angle_increment))
             disc.pose.position.x, disc.pose.position.y = near_xy
             disc.pose.position.z = 0.03
             disc.scale.x = disc.scale.y = 2.0 * radius

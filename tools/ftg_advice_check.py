@@ -1,4 +1,5 @@
 """Throwaway check: does each FTG failure mode produce its advice? (no ROS graph needed)"""
+import math
 import sys
 
 import numpy as np
@@ -65,6 +66,29 @@ assert "[Bubble too large]" not in a
 sink, a = run("2. bubble too small (scraping on a straight)",
               dict(nearest_dist=0.15, steer=-0.05, speed=2.0, gap=(0, 199),
                    bubble_start=0, bubble_end=4))
+assert "[Bubble too small]" in a
+assert sink["/debug/ftg/bubble_beams"].data == 4.0
+
+ranges_bubbled = np.full(80, 3.0)
+ranges_bubbled[10:30] = 0.0
+sink, a = run(
+    "2b. bubble inferred from zeroed ranges",
+    dict(nearest_dist=1.8, steer=0.0, speed=2.0, gap=(30, 79),
+         best_point=55, ranges=ranges_bubbled, angle_increment=0.004,
+         angle_min=-2.35, window_start=500),
+)
+assert a == "OK", f"expected OK, got: {a}"
+assert sink["/debug/ftg/bubble_beams"].data == 20.0
+bubble = next(m for m in sink["/debug/ftg/markers"].markers if m.text == "BUBBLE")
+assert abs(math.hypot(bubble.pose.position.x, bubble.pose.position.y) - 3.0) < 0.05
+
+ranges_tiny = np.full(80, 3.0)
+ranges_tiny[0:4] = 0.0
+sink, a = run(
+    "2c. inferred tiny bubble scrapes (must be too small)",
+    dict(nearest_dist=0.15, steer=-0.05, speed=2.0, gap=(10, 79),
+         ranges=ranges_tiny),
+)
 assert "[Bubble too small]" in a
 assert sink["/debug/ftg/bubble_beams"].data == 4.0
 
