@@ -124,15 +124,32 @@ self._debug = FtgDebugPublisher(self)
 # scan=data is the LaserScan callback argument — leave it as-is.
 self._debug.publish(
     scan=data,
-    ranges=forward_lidar,
+    ranges=proc_ranges,        # ranges after pre processed, the one actually used in FTG
     steer=steering_command,
     speed=velocity_command,
     gap=gap,                   # (start, end) or (None, None)
     best_point=best_point,     # None if no gap
-    nearest_index=nearest_obstacle_index,
-    bubble_start=bubble_start,
-    bubble_end=bubble_end,
+    #nearest_index=nearest_obstacle_index,
+    #bubble_start=bubble_start,
+    #bubble_end=bubble_end,
 )
+
+#Former version with ranges=forward_lidar,
+        #foxglove dashboard
+        self._debug.publish(
+            scan=data,
+            ranges=forward_lidar,
+            #ranges=proc_ranges,
+            window_start=120,               #lidar window start index
+            steer=steering_command,
+            speed=velocity_command,
+            gap=gap,                        # (start, end) or (None, None)
+            best_point=best_point,          # None if no gap
+            nearest_index=nearest_obstacle_index,
+            bubble_start=bubble_start,
+            bubble_end=bubble_end,
+            #chunk_size=CHUNK_SIZE,  # added for chunking
+        )
 ```
 
 After `colcon build`, source `install/setup.bash` so the node picks up this publisher.
