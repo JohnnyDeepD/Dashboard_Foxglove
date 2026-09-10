@@ -134,6 +134,9 @@ self._debug.publish(
     #bubble_end=bubble_end,
 )
 
+#self._debug.publish could be much simpler with ranges=proc_ranges, the actual value that students are using
+#for lidar_callback, deleted ones could be inferred in controller_debug.py
+
 #Former version with ranges=forward_lidar,
         #foxglove dashboard
         self._debug.publish(
