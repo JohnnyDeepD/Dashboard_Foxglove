@@ -840,9 +840,9 @@ class FtgDebugPublisher:
             self._close_from_turn = False
 
         chunk_tip = (
-            "[Chunking] Grouping lidar beams into chunks shifts the green "
-            "gap and yellow AIM, so other tips may be wrong. Turn chunk "
-            "averaging off. Smooth with a moving average instead."
+            "[Chunking] The green gap and yellow AIM do not match the "
+            "array you passed as ranges. If you preprocess or chunk, "
+            "pass that processed lidar array, not the raw slice."
         )
         chunking = self._persisted("chunking", bool(looks_chunked))
         if chunking:

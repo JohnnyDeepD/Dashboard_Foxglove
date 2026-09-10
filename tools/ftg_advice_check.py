@@ -232,7 +232,7 @@ sink, a = run(
         bubble_end=20,
     ),
 )
-assert "[Chunking]" in a and "chunk averaging" in a.lower()
+assert "[Chunking]" in a and "processed" in a.lower()
 assert "[Steer sign]" not in a
 assert "[Straight wobble]" not in a
 assert "[Corner AIM]" not in a

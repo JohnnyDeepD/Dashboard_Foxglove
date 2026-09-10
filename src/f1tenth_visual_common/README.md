@@ -184,7 +184,7 @@ After `colcon build`, source `install/setup.bash` so the node picks up this publ
 | Yellow AIM goes one way, the car steers the other | `[Steer sign]` | Left is positive. Flip the sign of the steering angle |
 | Red BUBBLE is tiny and you get close to a wall on a straight | `[Bubble too small]` | Increase the safety bubble |
 | Red BUBBLE ate the gap / AIM on a wall | `[Bubble too large]` | Shrink the safety bubble |
-| Green gap / yellow AIM sit at the wrong angle | `[Chunking]` | Turn off chunk averaging; use a moving average |
+| Green gap / yellow AIM sit at the wrong angle | `[Chunking]` | Pass the processed lidar (`proc_ranges`), not the raw slice |
 | The lidar window includes beams behind the car | `[Rear scan]` | Use only the forward slice |
 | Steering is huge (degrees or a beam index) | `[Steer units]` | Use a radian steering angle |
 | Yellow AIM is off to the side, steering is ~0 | `[Steer unused]` | Convert the AIM beam to a steering angle in radians |
@@ -202,8 +202,10 @@ frames (`rearm`) a new wobble/Far AIM line can appear. That demo is
 extreme; leave it. Do not raise rearm. If student logs actually stack
 those two, stop counting one as “off” while the other is on.
 
-`[Chunking]` fires if the lab-formula length ratio is about 2 or more. It
-suppresses `[Steer sign]`, `[Straight wobble]`, `[Far AIM]`, and the corner tips. The
+`[Chunking]` fires if the lab-formula length ratio is about 2 or more
+(usually `ranges=forward_lidar` while steer/AIM used a shorter processed
+array). It tells the student to pass that processed array. It suppresses
+`[Steer sign]`, `[Straight wobble]`, `[Far AIM]`, and the corner tips. The
 line is repeated only after a different tip is logged, not every scan.
 
 `[Rear scan]` fires if either end of the passed lidar window is more than
@@ -281,9 +283,9 @@ as a new message every scan.
 asks to turn chunk averaging off and smooth with a moving average instead.
 --> changes after problem solving
 **Chunk Size in FTG**: `[Chunking]` still fires only on the lab-formula
-length ratio (about 2+). Passing `proc_ranges` after chunking makes that
-ratio ~1, so the tip usually stays off. The table line is the old
-“turn chunking off” contract; we do not ask for `chunk_size` yet.
+length ratio (about 2+). The tip now says to pass the processed array,
+not to turn chunking off. Passing `proc_ranges` after chunking makes
+that ratio ~1, so the tip usually stays off.
 
 **ranges**: Students might use processed lidar ranges or the original ranges, consider both cases -> infer it by 
 (len(scan.ranges) - len(ranges)) // 2
