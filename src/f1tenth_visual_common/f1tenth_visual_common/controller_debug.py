@@ -434,7 +434,7 @@ class FtgDebugPublisher:
         speed: float = 0.0,
         scan=None,
         ranges: Optional[np.ndarray] = None,
-        window_start: int = 0,
+        window_start: Optional[int] = None,
         gap=None,
         best_point: Optional[int] = None,
         nearest_index: int = -1,
@@ -451,7 +451,8 @@ class FtgDebugPublisher:
         """Publish advice plus the 3D gap / aim / bubble markers.
 
         Students pass ``scan``, ``ranges``, ``gap``, and the indices they
-        already have. Width / scan angles / nearest distance are derived here.
+        already have. Width / scan angles / nearest distance / bubble
+        (zeroed run in ``ranges``) are derived here.
         """
         if scan is not None:
             if angle_increment is None:
@@ -460,11 +461,22 @@ class FtgDebugPublisher:
                 angle_min = float(scan.angle_min)
             frame_id = str(getattr(scan.header, "frame_id", None) or frame_id)
 
+        if window_start is None:
+            window_start = self._infer_window_start(scan, ranges)
+
         gap_start, gap_width, best_point = self._unpack_gap(
             gap, gap_width, gap_start, best_point
         )
+        if bubble_start is None and bubble_end is None:
+            bubble_start, bubble_end, inferred_nearest = self._infer_bubble(ranges)
+            if nearest_index < 0:
+                nearest_index = inferred_nearest
+        elif nearest_index < 0 and bubble_start is not None and bubble_end is not None:
+            nearest_index = (int(bubble_start) + int(bubble_end)) // 2
         if bubble_start is not None and bubble_end is not None and float(bubble_beams) < 0.0:
             bubble_beams = float(max(0, int(bubble_end) - int(bubble_start)))
+        elif ranges is not None and float(bubble_beams) < 0.0:
+            bubble_beams = 0.0
         if ranges is not None and nearest_dist < 0.0:
             arr = np.asarray(ranges, dtype=float)
             finite = arr[np.isfinite(arr) & (arr > 0.0)]
@@ -473,6 +485,7 @@ class FtgDebugPublisher:
 
         no_gap = float(gap_width) <= 0.0
         best_offset = self._aim_in_gap(float(gap_width), int(gap_start), int(best_point))
+        gap_center = float(gap_start) + 0.5 * (float(gap_width) - 1.0)
         steer_ratio = abs(float(steer)) / self._steer_limit
         steer_deg = math.degrees(float(steer))
         steer_jump = 0.0 if self._prev_steer is None else abs(float(steer) - self._prev_steer)
@@ -555,6 +568,8 @@ class FtgDebugPublisher:
             expected_steer=expected_steer,
             looks_chunked=looks_chunked,
             looks_rear=looks_rear,
+            best_point=int(best_point),
+            gap_center=gap_center,
         )))
 
     @staticmethod
@@ -585,6 +600,63 @@ class FtgDebugPublisher:
 
     def _looks_chunked(self, chunk_ratio: float) -> bool:
         return self._chunk_ratio_min <= float(chunk_ratio) <= self._chunk_ratio_max
+
+    @staticmethod
+    def _infer_window_start(scan, ranges) -> int:
+        """Centered crop: processed index 0 is the first beam of that window."""
+        if scan is None or ranges is None:
+            return 0
+        scan_ranges = getattr(scan, "ranges", None)
+        if scan_ranges is None:
+            return 0
+        n_scan = len(scan_ranges)
+        n = int(np.asarray(ranges).shape[0])
+        if n_scan <= 0 or n <= 0 or n > n_scan:
+            return 0
+        return (n_scan - n) // 2
+
+    @staticmethod
+    def _infer_bubble(ranges):
+        """Longest <=0 run in published ranges. Slice is [start, end)."""
+        if ranges is None:
+            return None, None, -1
+        arr = np.asarray(ranges, dtype=float)
+        n = int(arr.shape[0])
+        if n <= 0:
+            return None, None, -1
+        cleared = ~np.isfinite(arr) | (arr <= 0.0)
+        best_s = best_e = -1
+        best_n = 0
+        i = 0
+        while i < n:
+            if not cleared[i]:
+                i += 1
+                continue
+            j = i + 1
+            while j < n and cleared[j]:
+                j += 1
+            if j - i > best_n:
+                best_n = j - i
+                best_s, best_e = i, j
+            i = j
+        if best_n <= 0:
+            return None, None, -1
+        return best_s, best_e, best_s + best_n // 2
+
+    @staticmethod
+    def _bubble_wall_range(ranges, bubble_start, bubble_end) -> Optional[float]:
+        """Closest positive range just outside the zeroed bubble."""
+        if ranges is None or bubble_start is None or bubble_end is None:
+            return None
+        arr = np.asarray(ranges, dtype=float)
+        n = int(arr.shape[0])
+        best = None
+        for i in (int(bubble_start) - 1, int(bubble_end)):
+            if 0 <= i < n:
+                r = float(arr[i])
+                if math.isfinite(r) and r > 0.05 and (best is None or r < best):
+                    best = r
+        return best
 
     def _looks_rear(self, ranges, angle_min, angle_increment, window_start: int) -> bool:
         if ranges is None or angle_min is None or angle_increment is None:
@@ -694,6 +766,13 @@ class FtgDebugPublisher:
 
         # Red disc around the closest obstacle = the safety bubble.
         near_xy = xy(nearest_index)
+        wall_r = self._bubble_wall_range(ranges, bubble_start, bubble_end)
+        if near_xy is None and 0 <= nearest_index < int(ranges.shape[0]):
+            r = wall_r if wall_r is not None else (
+                nearest_dist if nearest_dist > 0.05 else 0.2
+            )
+            angle = angle_min + float(window_start + nearest_index) * angle_increment
+            near_xy = (r * math.cos(angle), r * math.sin(angle))
         disc = base(4, Marker.CYLINDER)
         bubble_label = base(5, Marker.TEXT_VIEW_FACING)
         if near_xy is not None:
@@ -702,8 +781,9 @@ class FtgDebugPublisher:
                 half_beams = 0.5 * max(0, int(bubble_end) - int(bubble_start))
             elif bubble_beams > 0.0:
                 half_beams = 0.5 * bubble_beams
-            dist = nearest_dist if nearest_dist > 0.05 else math.hypot(*near_xy)
-            radius = max(0.12, dist * math.tan(max(half_beams, 1.0) * angle_increment))
+            dist = math.hypot(*near_xy)
+            # 6x for Foxglove visibility; not the true meter width of the beams.
+            radius = max(0.05, 6 * dist * math.tan(max(half_beams, 1.0) * angle_increment))
             disc.pose.position.x, disc.pose.position.y = near_xy
             disc.pose.position.z = 0.03
             disc.scale.x = disc.scale.y = 2.0 * radius
@@ -740,6 +820,8 @@ class FtgDebugPublisher:
         expected_steer: float = 0.0,
         looks_chunked: bool = False,
         looks_rear: bool = False,
+        best_point: int = -1,
+        gap_center: float = 0.0,
     ) -> str:
         import time as _time
         tips = []
@@ -758,9 +840,9 @@ class FtgDebugPublisher:
             self._close_from_turn = False
 
         chunk_tip = (
-            "[Chunking] Grouping lidar beams into chunks shifts the green "
-            "gap and yellow AIM, so other tips may be wrong. Turn chunk "
-            "averaging off. Smooth with a moving average instead."
+            "[Chunking] The green gap and yellow AIM do not match the "
+            "array you passed as ranges. If you preprocess or chunk, "
+            "pass that processed lidar array, not the raw slice."
         )
         chunking = self._persisted("chunking", bool(looks_chunked))
         if chunking:
@@ -820,7 +902,8 @@ class FtgDebugPublisher:
             (not chunking)
             and not turning
             and (not jumping)
-            and abs(best_offset) > 0.4,
+            and abs(best_offset) > 0.4
+            and abs(best_point - gap_center) > 25,
         ):
             tips.append(
                 "[Far AIM] The yellow AIM is not in the middle of the green "
