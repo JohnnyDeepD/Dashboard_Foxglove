@@ -6,10 +6,20 @@ Use this package to see your Follow The Gap code in Foxglove: the gap you chose,
 
 ## 1. Add this package to your workspace
 
-Clone this repository into the `src` folder of your ROS 2 workspace, then build:
+**Clone this repository into the `src` folder of your ROS 2 workspace, then build:**
+```bash
+cd src
+git clone -b Student_Pack_Follow_the_Gap git@github.com:JohnnyDeepD/Dashboard_Foxglove.git
+```
+
+**Check**
+```bash
+cd Dashboard_Foxglove && git branch --show-current
+```
+If "Student_Pack_Follow_the_Gap" shows up you are good to go.
 
 ```bash
-cd <your_ws>
+cd <your_ws> #above your original src directory
 colcon build --packages-select f1tenth_visual_common
 source install/setup.bash
 ```
