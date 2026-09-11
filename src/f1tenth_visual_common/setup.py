@@ -14,13 +14,16 @@ setup(
             f"share/{package_name}/launch",
             [
                 "launch/dashboard.launch.py",
+                "launch/mppi.launch.py",
+                "launch/simple_mpc.launch.py",
+                "launch/waypoint_recorder.launch.py",
             ],
         ),
         (
             f"share/{package_name}/config",
             ["config/topics.yaml", "config/track.yaml", "config/waypoints_map.csv"],
         ),
-        (f"share/{package_name}/foxglove", ["foxglove/layout_f1tenth_gym.json"]),
+        (f"share/{package_name}/foxglove", ["foxglove/layout_ftg_debug.json"]),
         (f"share/{package_name}", ["README.md"]),
     ],
     install_requires=["setuptools"],
@@ -34,6 +37,9 @@ setup(
         "console_scripts": [
             "trajectory_node = f1tenth_visual_common.trajectory_node:main",
             "stats_node = f1tenth_visual_common.stats_node:main",
+            "mppi_node = f1tenth_visual_common.mppi_node:main",
+            "simple_mpc_node = f1tenth_visual_common.simple_mpc_node:main",
+            "waypoint_recorder_node = f1tenth_visual_common.waypoint_recorder_node:main",
         ],
     },
 )
