@@ -27,8 +27,7 @@ In Foxglove:
 
 ## 3. Add three lines to your gap_follow node
 
-Rename the fields to match your code. `scan` is the LaserScan from your lidar callback.
-For `ranges`, pass the array you actually use for gap / AIM / bubble.
+The names on the right are examples. Use your own variables.
 
 ```python
 from f1tenth_visual_common.controller_debug import FtgDebugPublisher
@@ -40,10 +39,10 @@ self._debug = FtgDebugPublisher(self)
 self._debug.publish(
     scan=data,                 # LaserScan from your lidar callback
     ranges=proc_ranges,        # the array you actually use for gap / AIM / bubble
-    steer=steering_command,    
-    speed=velocity_command,
-    gap=gap,                   # (start, end) or (None, None)
-    best_point=best_point,     # None if no gap
+    steer=steering_command,    # steering you publish to /drive, in radians
+    speed=velocity_command,    # speed you publish to /drive
+    gap=gap,                   # (start, end) beam indices, or (None, None)
+    best_point=best_point,     # AIM beam index in that same ranges array; None if no gap
 )
 ```
 
