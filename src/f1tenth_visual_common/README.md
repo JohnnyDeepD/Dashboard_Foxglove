@@ -27,7 +27,8 @@ In Foxglove:
 
 ## 3. Add three lines to your gap_follow node
 
-Rename the algorithm fields to match your code. Leave `scan=data` as the `LaserScan` callback argument.
+Rename the fields to match your code. `scan` is the LaserScan from your lidar callback.
+For `ranges`, pass the array you actually use for gap / AIM / bubble.
 
 ```python
 from f1tenth_visual_common.controller_debug import FtgDebugPublisher
@@ -35,19 +36,14 @@ from f1tenth_visual_common.controller_debug import FtgDebugPublisher
 # __init__:
 self._debug = FtgDebugPublisher(self)
 
-# after you publish /drive:
+# after you publish /drive: (this is an example)
 self._debug.publish(
-    scan=data,
-    ranges=forward_lidar,
-    #ranges=proc_ranges, 
-    window_start=120,          # first index of your lidar slice
-    steer=steering_command,
+    scan=data,                 # LaserScan from your lidar callback
+    ranges=proc_ranges,        # the array you actually use for gap / AIM / bubble
+    steer=steering_command,    
     speed=velocity_command,
     gap=gap,                   # (start, end) or (None, None)
     best_point=best_point,     # None if no gap
-    nearest_index=nearest_obstacle_index,
-    bubble_start=bubble_start,
-    bubble_end=bubble_end,
 )
 ```
 
@@ -76,8 +72,6 @@ source install/setup.bash
 - **Yellow AIM ball** — the beam you are steering toward
 - **Red BUBBLE** — safety bubble around the closest obstacle
 
-Do not use chunk averaging with this dashboard. Smooth with a moving average instead.
-
 | What you see in 3D | Advice | What to change |
 |---|---|---|
 | Yellow AIM jumps left/right on a straight | `[Straight wobble]` | Aim at the gap midpoint |
@@ -87,7 +81,7 @@ Do not use chunk averaging with this dashboard. Smooth with a moving average ins
 | Yellow AIM goes one way, the car steers the other | `[Steer sign]` | Left is positive. Flip the sign of the steering angle |
 | Red BUBBLE is tiny and you get close to a wall on a straight | `[Bubble too small]` | Increase the safety bubble |
 | Red BUBBLE ate the gap / AIM on a wall | `[Bubble too large]` | Shrink the safety bubble |
-| Green gap / yellow AIM sit at the wrong angle | `[Chunking]` | Turn off chunk averaging; use a moving average |
+| Green gap / yellow AIM sit at the wrong angle | `[Chunking]` | Pass the processed lidar, not the raw slice |
 | The lidar window includes beams behind the car | `[Rear scan]` | Use only the forward slice |
 | Steering is huge (degrees or a beam index) | `[Steer units]` | Use a radian steering angle |
 | Yellow AIM is off to the side, steering is ~0 | `[Steer unused]` | Convert the AIM beam to a steering angle in radians |
